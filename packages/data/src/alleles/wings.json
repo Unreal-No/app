@@ -1,0 +1,51 @@
+[
+  {
+    "id": "wing.none",
+    "locus": "wing.type",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "ไม่มีปีก", "en": "None" },
+    "shape": "none"
+  },
+  {
+    "id": "wing.feather",
+    "locus": "wing.type",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "common",
+    "name": { "th": "ปีกขนนก", "en": "Feathered" },
+    "shape": "feather",
+    "params": { "span": 1.0 }
+  },
+  {
+    "id": "wing.bat",
+    "locus": "wing.type",
+    "dominance": 4,
+    "lineage": "mythical",
+    "rarity": "rare",
+    "name": { "th": "ปีกมังกร", "en": "Membrane" },
+    "shape": "bat",
+    "params": { "span": 1.15 }
+  },
+  {
+    "id": "wing.fairy",
+    "locus": "wing.type",
+    "dominance": 1,
+    "lineage": "mythical",
+    "rarity": "legendary",
+    "name": { "th": "ปีกภูต", "en": "Fairy" },
+    "shape": "fairy",
+    "params": { "span": 0.9 }
+  },
+  {
+    "id": "wing.fin",
+    "locus": "wing.type",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "uncommon",
+    "name": { "th": "ครีบข้าง", "en": "Side fins" },
+    "shape": "fin",
+    "params": { "span": 0.6 }
+  }
+]

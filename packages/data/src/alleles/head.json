@@ -1,0 +1,89 @@
+[
+  {
+    "id": "head.round",
+    "locus": "head.shape",
+    "dominance": 2,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "หัวกลม", "en": "Round" },
+    "shape": "round",
+    "params": { "snout": 0.12, "snoutW": 0.46, "cheeks": 0.4, "tall": 1.0, "wide": 1.05 }
+  },
+  {
+    "id": "head.cat",
+    "locus": "head.shape",
+    "dominance": 3,
+    "lineage": "modern",
+    "rarity": "common",
+    "name": { "th": "หัวแมว", "en": "Feline" },
+    "shape": "cat",
+    "params": { "snout": 0.13, "snoutW": 0.5, "cheeks": 0.85, "tall": 0.92, "wide": 1.15 }
+  },
+  {
+    "id": "head.bunny",
+    "locus": "head.shape",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "common",
+    "name": { "th": "หัวกระต่าย", "en": "Bunny" },
+    "shape": "bunny",
+    "params": { "snout": 0.16, "snoutW": 0.42, "cheeks": 0.6, "tall": 1.06, "wide": 1.0 }
+  },
+  {
+    "id": "head.bird",
+    "locus": "head.shape",
+    "dominance": 3,
+    "lineage": "modern",
+    "rarity": "common",
+    "name": { "th": "หัวนก", "en": "Avian" },
+    "shape": "bird",
+    "params": { "snout": 0, "snoutW": 0.3, "cheeks": 0.3, "tall": 1.0, "wide": 1.0, "beak": 0.34 }
+  },
+  {
+    "id": "head.fish",
+    "locus": "head.shape",
+    "dominance": 1,
+    "lineage": "modern",
+    "rarity": "uncommon",
+    "name": { "th": "หัวปลา", "en": "Fish" },
+    "shape": "fish",
+    "params": { "snout": 0.1, "snoutW": 0.6, "cheeks": 0.2, "tall": 1.0, "wide": 0.84 }
+  },
+  {
+    "id": "head.dino",
+    "locus": "head.shape",
+    "dominance": 4,
+    "lineage": "prehistoric",
+    "rarity": "uncommon",
+    "name": { "th": "หัวไดโนเสาร์", "en": "Saurian" },
+    "shape": "dino",
+    "params": { "snout": 0.5, "snoutW": 0.56, "cheeks": 0.1, "tall": 0.95, "wide": 0.96 }
+  },
+  {
+    "id": "head.dragon",
+    "locus": "head.shape",
+    "dominance": 4,
+    "lineage": "mythical",
+    "rarity": "rare",
+    "name": { "th": "หัวมังกร", "en": "Draconic" },
+    "shape": "dragon",
+    "params": { "snout": 0.42, "snoutW": 0.5, "cheeks": 0.25, "tall": 0.96, "wide": 1.0 }
+  },
+  {
+    "id": "head.horse",
+    "locus": "head.shape",
+    "dominance": 3,
+    "lineage": "mythical",
+    "rarity": "rare",
+    "name": { "th": "หัวม้า", "en": "Equine" },
+    "shape": "horse",
+    "params": {
+      "snout": 0.36,
+      "snoutW": 0.46,
+      "cheeks": 0.15,
+      "tall": 1.05,
+      "wide": 0.92,
+      "snoutDrop": 0.28
+    }
+  }
+]

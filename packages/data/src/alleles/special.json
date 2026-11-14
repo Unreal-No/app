@@ -1,0 +1,41 @@
+[
+  {
+    "id": "special.none",
+    "locus": "special.trait",
+    "dominance": 5,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "ปกติ", "en": "None" },
+    "shape": "none"
+  },
+  {
+    "id": "special.glow",
+    "locus": "special.trait",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "legendary",
+    "mutationOnly": true,
+    "name": { "th": "เรืองแสง", "en": "Glow" },
+    "shape": "glow"
+  },
+  {
+    "id": "special.crystal",
+    "locus": "special.trait",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "legendary",
+    "mutationOnly": true,
+    "name": { "th": "ผิวคริสตัล", "en": "Crystal" },
+    "shape": "crystal"
+  },
+  {
+    "id": "special.rainbow",
+    "locus": "special.trait",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "legendary",
+    "mutationOnly": true,
+    "name": { "th": "สีรุ้ง", "en": "Rainbow" },
+    "shape": "rainbow"
+  }
+]

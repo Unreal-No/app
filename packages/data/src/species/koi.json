@@ -1,0 +1,57 @@
+{
+  "id": "koi",
+  "name": { "th": "ปลาคาร์ป", "en": "Koi" },
+  "lineage": "modern",
+  "nameParts": { "prefix": ["Koi", "Puku", "Finn"], "suffix": ["koi", "puku", "fin"] },
+  "parts": {
+    "head.shape": [["head.fish", 10]],
+    "ear.type": [
+      ["ear.none", 8],
+      ["ear.fin", 2]
+    ],
+    "horn.type": [["horn.none", 10]],
+    "wing.type": [["wing.fin", 10]],
+    "tail.type": [["tail.fish", 10]],
+    "limb.type": [["limb.flipper", 10]],
+    "eye.type": [
+      ["eye.round", 9],
+      ["eye.sparkle", 1]
+    ],
+    "pattern.type": [
+      ["pattern.patch", 5],
+      ["pattern.scales", 3],
+      ["pattern.spots", 2]
+    ],
+    "special.trait": [["special.none", 1]]
+  },
+  "nums": {
+    "body.size": [0.32, 0.07],
+    "body.length": [0.55, 0.08],
+    "body.girth": [0.55, 0.1],
+    "head.size": [0.6, 0.06],
+    "wing.size": [0.45, 0.1],
+    "tail.size": [0.65, 0.12],
+    "eye.size": [0.6, 0.08],
+    "temper.sleepy": [0.4, 0.15],
+    "temper.shy": [0.6, 0.2],
+    "temper.appetite": [0.75, 0.12]
+  },
+  "colors": {
+    "color.base": [
+      { "l": 0.96, "c": 0.02, "h": 80, "d": 0.4 },
+      { "l": 0.78, "c": 0.15, "h": 45, "d": 0.6 },
+      { "l": 0.85, "c": 0.08, "h": 220, "d": 0.3 }
+    ],
+    "color.belly": [{ "l": 0.97, "c": 0.02, "h": 80, "d": 0.5 }],
+    "color.pattern": [
+      { "l": 0.7, "c": 0.19, "h": 35, "d": 0.7 },
+      { "l": 0.35, "c": 0.03, "h": 270, "d": 0.5 },
+      { "l": 0.85, "c": 0.14, "h": 90, "d": 0.3 }
+    ],
+    "color.eye": [{ "l": 0.3, "c": 0.03, "h": 270, "d": 0.8 }],
+    "color.accent": [
+      { "l": 0.82, "c": 0.12, "h": 40, "d": 0.5 },
+      { "l": 0.9, "c": 0.05, "h": 200, "d": 0.3 }
+    ]
+  }
+}

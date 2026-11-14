@@ -1,0 +1,23 @@
+{
+  "name": "@mochimon/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "tauri": "tauri",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@mochimon/core": "workspace:*",
+    "@mochimon/creature": "workspace:*",
+    "@tauri-apps/api": "^2.12.4",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
+    "@types/three": "^0.187.0",
+    "vite": "^8.3.8"
+  }
+}
