@@ -1,0 +1,182 @@
+[
+  {
+    "id": "mask.none",
+    "locus": "marking.mask",
+    "dominance": 2,
+    "lineage": "any",
+    "rarity": "common",
+    "name": {
+      "th": "ไม่มีลายแต้ม",
+      "en": "None"
+    },
+    "shape": "none"
+  },
+  {
+    "id": "mask.cap",
+    "locus": "marking.mask",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "common",
+    "name": {
+      "th": "หมวกคลุมหัว",
+      "en": "Cap"
+    },
+    "shape": "cap"
+  },
+  {
+    "id": "mask.cape",
+    "locus": "marking.mask",
+    "dominance": 4,
+    "lineage": "any",
+    "rarity": "common",
+    "name": {
+      "th": "หมวก+ผ้าคลุมหลัง",
+      "en": "Cap & saddle"
+    },
+    "shape": "cape"
+  },
+  {
+    "id": "mask.bandit",
+    "locus": "marking.mask",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "uncommon",
+    "name": {
+      "th": "หน้ากากรอบตา",
+      "en": "Bandit mask"
+    },
+    "shape": "bandit"
+  },
+  {
+    "id": "mask.points",
+    "locus": "marking.mask",
+    "dominance": 1,
+    "lineage": "modern",
+    "rarity": "rare",
+    "name": {
+      "th": "แต้มปลาย (หู จมูก เท้า)",
+      "en": "Colour points"
+    },
+    "shape": "points"
+  },
+  {
+    "id": "socks.none",
+    "locus": "marking.socks",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "common",
+    "name": {
+      "th": "ไม่มีถุงเท้า",
+      "en": "None"
+    },
+    "shape": "none"
+  },
+  {
+    "id": "socks.short",
+    "locus": "marking.socks",
+    "dominance": 2,
+    "lineage": "any",
+    "rarity": "common",
+    "name": {
+      "th": "ถุงเท้าสั้น",
+      "en": "Socks"
+    },
+    "shape": "socks"
+  },
+  {
+    "id": "socks.long",
+    "locus": "marking.socks",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "uncommon",
+    "name": {
+      "th": "ถุงเท้ายาว",
+      "en": "Stockings"
+    },
+    "shape": "gloves"
+  },
+  {
+    "id": "tailmark.none",
+    "locus": "marking.tail",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "common",
+    "name": {
+      "th": "หางสีเดียว",
+      "en": "Plain"
+    },
+    "shape": "none"
+  },
+  {
+    "id": "tailmark.tip",
+    "locus": "marking.tail",
+    "dominance": 2,
+    "lineage": "any",
+    "rarity": "common",
+    "name": {
+      "th": "ปลายหางไล่สี",
+      "en": "Dipped tip"
+    },
+    "shape": "tip"
+  },
+  {
+    "id": "tailmark.rings",
+    "locus": "marking.tail",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "uncommon",
+    "name": {
+      "th": "หางปล้อง",
+      "en": "Rings"
+    },
+    "shape": "rings"
+  },
+  {
+    "id": "symbol.none",
+    "locus": "marking.symbol",
+    "dominance": 4,
+    "lineage": "any",
+    "rarity": "common",
+    "name": {
+      "th": "ไม่มีสัญลักษณ์",
+      "en": "None"
+    },
+    "shape": "none"
+  },
+  {
+    "id": "symbol.heart",
+    "locus": "marking.symbol",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "rare",
+    "name": {
+      "th": "รูปหัวใจ",
+      "en": "Heart"
+    },
+    "shape": "heart"
+  },
+  {
+    "id": "symbol.star",
+    "locus": "marking.symbol",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "rare",
+    "name": {
+      "th": "รูปดาว",
+      "en": "Star"
+    },
+    "shape": "star"
+  },
+  {
+    "id": "symbol.moon",
+    "locus": "marking.symbol",
+    "dominance": 1,
+    "lineage": "mythical",
+    "rarity": "legendary",
+    "name": {
+      "th": "รูปจันทร์เสี้ยว",
+      "en": "Crescent"
+    },
+    "shape": "moon"
+  }
+]

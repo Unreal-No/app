@@ -74,6 +74,10 @@ const SLOT_LOCUS: Record<Slot, string> = {
   eyes: 'eye.type',
   pattern: 'pattern.type',
   special: 'special.trait',
+  mask: 'marking.mask',
+  socks: 'marking.socks',
+  tailmark: 'marking.tail',
+  symbol: 'marking.symbol',
 }
 
 /** แปลง genotype → phenotype (สิ่งที่มองเห็น/นิสัยตั้งต้น) — เป็นฟังก์ชันบริสุทธิ์ */
@@ -95,6 +99,10 @@ export function express(genome: Genome, db: GeneDb = geneDb): Phenotype {
     eyes: part('eyes'),
     pattern: part('pattern'),
     special: part('special'),
+    mask: part('mask'),
+    socks: part('socks'),
+    tailmark: part('tailmark'),
+    symbol: part('symbol'),
   }
 
   const nums: Record<string, number> = {}
@@ -132,6 +140,8 @@ export function express(genome: Genome, db: GeneDb = geneDb): Phenotype {
       pattern: color('color.pattern'),
       eye: color('color.eye'),
       accent: color('color.accent'),
+      mark: color('color.mark'),
+      inner: color('color.inner'),
     },
     temperament: {
       affection: num('temper.affection'),

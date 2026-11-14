@@ -1,13 +1,15 @@
 import * as THREE from 'three'
 import type { BodySpec, Phenotype } from '@mochimon/core'
-import { createCreatureMaterials, type CreatureMaterials } from '../material/toon'
+import { createFaceMaterials, type FaceMaterials } from '../material/face'
+import { createPlushMaterials, type PlushMaterials } from '../material/plush'
+import { projectedCap } from './face'
+import { FieldGroup } from './field'
 import {
   ball,
   batWingShape,
   bentCone,
   deformedBall,
   fanShape,
-  featherWingShape,
   finShape,
   fishTailShape,
   hangingCapsule,
@@ -17,20 +19,46 @@ import {
   standingCapsule,
 } from './shapes'
 
-type BellyFn = (posInCreature: THREE.Vector3) => number
+/** น้ำหนักสีของ vertex: [สีท้อง/หน้า, ลายแต้ม] จากตำแหน่งในท่าพัก (พิกัดตัวสัตว์) */
+type PaintFn = (pos: THREE.Vector3) => [number, number]
 
 interface PartOpts {
-  outline?: boolean
-  belly?: number | BellyFn
+  /** กลุ่มที่หลอมเป็นเนื้อเดียวกัน + ครึ่งแกนของทรงรี (ถ้าชิ้นนี้เป็นทรงรี) */
+  group?: FieldGroup
+  radii?: [number, number, number]
+  paint?: PaintFn
+  /** ตัวคูณความยาวขน (0 = ไม่มีขน) หรือฟังก์ชันตามตำแหน่ง */
+  fur?: number | ((pos: THREE.Vector3) => number)
+  /** ระยะโคน→ปลาย 0..1 จากตำแหน่งใน local ของ mesh (ใช้กับชิ้นเรืองแสง) */
+  tip?: (local: THREE.Vector3) => number
+}
+
+export type PoseName = 'stand' | 'sit' | 'lie' | 'curl'
+
+export interface LegPose {
+  x: number
+  y: number
+  z: number
+  rx: number
+  ry: number
+}
+/** ท่าทางของทั้งตัว — Animator จะค่อยๆ ผสมจากท่าหนึ่งไปอีกท่า */
+export interface PoseDef {
+  bodyY: number
+  bodyZ: number
+  bodyPitch: number
+  headPitch: number
+  headYaw: number
+  headRoll: number
+  headDrop: number
+  tailPitch: number
+  tailYaw: number
+  legs: LegPose[]
 }
 
 export interface LegRig {
   pivot: THREE.Group
-  /** เฟสของจังหวะก้าว */
   phase: number
-  /** +1 = ขาหน้า (พับไปข้างหน้าตอนนอน), -1 = ขาหลัง */
-  fold: number
-  restY: number
 }
 export interface PairRig {
   pivot: THREE.Group
@@ -38,56 +66,60 @@ export interface PairRig {
   rest: THREE.Euler
 }
 export interface TailRig {
+  base: THREE.Group
   joints: THREE.Group[]
   rest: number[]
   yaw: number
-}
-export interface EyeRig {
-  group: THREE.Group
-  baseOpen: number
 }
 
 export interface Rig {
   posture: BodySpec['posture']
   body: THREE.Group
-  bodyRestY: number
-  /** ระยะที่ลำตัวลดลงตอนหมอบ/นอน */
-  crouch: number
   head: THREE.Group
+  headRest: THREE.Vector3
   legs: LegRig[]
   arms: PairRig[]
   ears: PairRig[]
   wings: PairRig[]
   tails: TailRig[]
-  eyes: EyeRig[]
+  eyes: THREE.Mesh[]
+  face: FaceMaterials
+  /** ค่าตาเปิดพื้นฐานของชนิดตา (ตาปรือ < 1) */
+  eyeOpenBase: number
+  poses: Record<PoseName, PoseDef>
   canFly: boolean
+}
+
+export interface BuildOptions {
+  /** คุณภาพขน: ปิด / กลาง (6 ชั้น) / สูง (12 ชั้น) */
+  fur?: 'off' | 'medium' | 'high'
+  /** ใส่ปลอกคอ + กระดิ่ง (เครื่องประดับ ไม่ใช่ยีนส์) */
+  collar?: boolean
 }
 
 export interface BuiltCreature {
   root: THREE.Group
   rig: Rig
-  materials: CreatureMaterials
-  /** ขนาดกล่องขอบเขตในท่าพัก (หลังคูณ scale แล้ว) */
+  materials: PlushMaterials
+  /** ขนาดกล่องขอบเขตในท่ายืน (หลังคูณ scale แล้ว) */
   size: THREE.Vector3
   /** รัศมีฐานลำตัวโดยประมาณ (ไม่รวมปีก/หาง) — ใช้กับเงาและพื้นที่คลิก */
   footprint: number
   dispose(): void
 }
 
+const SHELLS = { off: 0, medium: 6, high: 12 }
+
 /** smoothstep ที่รองรับขอบกลับด้าน (a > b) */
 const smooth = (a: number, b: number, x: number) => {
   const t = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1)
   return t * t * (3 - 2 * t)
 }
+const lerp = THREE.MathUtils.lerp
 
-function mesh(
-  geometry: THREE.BufferGeometry,
-  material: THREE.Material,
-  opts: PartOpts = {},
-): THREE.Mesh {
+function mesh(geometry: THREE.BufferGeometry, material: THREE.Material, opts: PartOpts = {}) {
   const m = new THREE.Mesh(geometry, material)
-  m.userData.outline = opts.outline ?? true
-  m.userData.belly = opts.belly ?? 0
+  m.userData.part = opts
   return m
 }
 
@@ -118,252 +150,383 @@ function mirrored(
 }
 
 /** ประกอบร่างสัตว์จาก phenotype + สัดส่วนร่างกาย (หันหน้าไปทาง +Z, ยืนบนระนาบ y=0) */
-export function buildCreature(p: Phenotype, s: BodySpec): BuiltCreature {
+export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}): BuiltCreature {
   const root = new THREE.Group()
   const { rx, ry, rz } = s.torso
   const R = s.headR
-  const hipY = s.posture === 'float' ? 0 : s.legLen
-  const bodyRestY = s.posture === 'float' ? ry + 0.14 : hipY + ry * 0.92
-  const totalHeight = bodyRestY + ry + R * 1.6
-  const mats = createCreatureMaterials(p, totalHeight)
+  const quad = s.posture === 'quad'
+  const upright = s.posture === 'upright'
+  const floating = s.posture === 'float'
+  const legTop = floating ? 0 : s.legLen + ry * (quad ? 0.35 : 0.3)
+  const standY = floating ? ry + 0.16 : s.legLen + ry * 0.93
+  const headRest = quad
+    ? new THREE.Vector3(0, ry * 0.36 + R * 0.76, rz * 0.5 + R * 0.34)
+    : upright
+      ? new THREE.Vector3(0, ry * 0.72 + R * 0.72, rz * 0.12)
+      : new THREE.Vector3(0, ry * 0.12, rz * 0.62 + R * 0.3)
+  const bodyCenter = new THREE.Vector3(0, standY, 0)
+  const headCenter = bodyCenter.clone().add(headRest)
+  const totalHeight = headCenter.y + R * 1.5
+
+  const mats = createPlushMaterials(p, {
+    height: totalHeight,
+    shells: SHELLS[opts.fur ?? 'medium'],
+    symbolPos: new THREE.Vector3(rx * 0.9, standY - ry * 0.05, -rz * 0.42),
+    symbolSize: Math.min(ry, rz) * 0.5,
+  })
+  const furGene = p.nums['fur.length'] ?? 0.5
+  const furry = mats.furLength > 0
+  const extraMaterials: THREE.Material[] = []
+  const tint = (hex: string) => {
+    const m = mats.accent.clone()
+    m.uniforms.uBase = { value: new THREE.Color(hex) }
+    m.uniforms.uTipColor = { value: new THREE.Color(hex) }
+    m.uniforms.uGlow = { value: 0 }
+    extraMaterials.push(m)
+    return m
+  }
 
   const rig: Rig = {
     posture: s.posture,
-    body: group(0, bodyRestY, 0),
-    bodyRestY,
-    crouch: s.posture === 'float' ? 0 : hipY * 0.85,
-    head: group(),
+    body: group(0, standY, 0),
+    head: group(headRest.x, headRest.y, headRest.z),
+    headRest,
     legs: [],
     arms: [],
     ears: [],
     wings: [],
     tails: [],
     eyes: [],
+    face: createFaceMaterials(p.colors.eye.hex, p.parts.eyes.shape),
+    eyeOpenBase: p.parts.eyes.shape === 'sleepy' ? 0.6 : 1,
+    poses: {} as Record<PoseName, PoseDef>,
     canFly: p.habitat === 'sky',
   }
   root.add(rig.body)
+  rig.body.add(rig.head)
 
-  // ───────── ลำตัว ─────────
-  const bodyCenter = new THREE.Vector3(0, bodyRestY, 0)
-  const torsoBelly: BellyFn = (pos) => {
+  const mask = p.parts.mask.shape
+  const socks = p.parts.socks.shape
+  const tailmark = p.parts.tailmark.shape
+
+  // ═════════ ลำตัว ═════════
+  const bodyField = new FieldGroup(Math.min(rx, ry) * 0.5)
+  const bodyPaint: PaintFn = (pos) => {
     const d = pos.clone().sub(bodyCenter)
     d.set(d.x / rx, d.y / ry, d.z / rz).normalize()
-    return s.posture === 'upright'
+    const belly = upright
       ? smooth(0.42, 0.7, d.z - d.y * 0.2 - Math.abs(d.x) * 0.35)
       : smooth(0.25, 0.6, -d.y * 0.85 + d.z * 0.4)
+    // ผ้าคลุมหลัง: ด้านบนและท้ายลำตัว ขอบหยักเล็กน้อยแบบขน
+    const wobble = 0.07 * Math.sin(d.x * 9 + d.z * 7)
+    const saddle = upright
+      ? smooth(0.05, 0.45, -d.z * 0.9 + d.y * 0.25 + wobble)
+      : smooth(0.1, 0.45, d.y * 0.9 - d.z * 0.45 + wobble)
+    return [belly, mask === 'cape' ? saddle : 0]
   }
   const torsoGeo = deformedBall(rx, ry, rz, (v) => {
-    if (s.posture === 'upright') {
-      // ทรงไข่: ก้นกว้าง ไหล่แคบ + พุงยื่นด้านหน้า
+    if (upright) {
       const w = 1 + 0.16 * -v.y
       v.x *= w
       v.z *= w
       if (v.z > 0 && v.y < 0.3) v.z *= 1 + s.belly * 0.25 * (0.3 - v.y)
     } else if (v.y < 0) {
-      // พุงย้อย: ด้านล่างป่องและหย่อน
       const sag = s.belly * -v.y
       v.x *= 1 + 0.2 * sag
       v.z *= 1 + 0.1 * sag
       v.y *= 1 + 0.22 * s.belly
     }
   })
-  rig.body.add(mesh(torsoGeo, mats.body, { belly: torsoBelly }))
+  rig.body.add(
+    mesh(torsoGeo, mats.skin, { group: bodyField, radii: [rx, ry, rz], paint: bodyPaint, fur: 1 }),
+  )
+  // ขนฟูที่อก
+  if (furry && !floating) {
+    const chest = mesh(ball(rx * 0.62, ry * 0.5, rz * 0.3), mats.skin, {
+      group: bodyField,
+      radii: [rx * 0.62, ry * 0.5, rz * 0.3],
+      paint: () => [1, 0],
+      fur: 1.5,
+    })
+    chest.position.set(0, quad ? ry * 0.05 : ry * 0.25, quad ? rz * 0.82 : rz * 0.78)
+    rig.body.add(chest)
+  }
 
-  // ───────── หัว ─────────
+  // ═════════ หัว ═════════
   const hp = p.parts.head.params
   const snout = hp.snout ?? 0.12
   const wide = hp.wide ?? 1
   const tall = hp.tall ?? 1
-  const longFace = snout > 0.3
-  if (s.posture === 'upright') rig.head.position.set(0, ry * 0.78 + R * 0.72, rz * 0.12)
-  else if (s.posture === 'float') rig.head.position.set(0, ry * 0.12, rz * 0.7 + R * 0.25)
-  else rig.head.position.set(0, ry * 0.5 + R * 0.6, rz * 0.78 + R * 0.12)
-  rig.body.add(rig.head)
-
   const cheeks = hp.cheeks ?? 0.4
-  const headGeo = deformedBall(R * wide, R * tall, R * 0.95, (v) => {
+  const longFace = snout > 0.3
+  const headShape = p.parts.head.shape
+  const skull = new THREE.Vector3(R * wide, R * tall, R * 0.94)
+  const skullDeform = (v: THREE.Vector3) => {
     if (v.y < 0.1) v.x *= 1 + cheeks * 0.2 * smooth(0.1, -0.6, v.y)
-  })
-  rig.head.add(mesh(headGeo, mats.body))
+  }
+  const headField = new FieldGroup(R * 0.3)
 
-  // จมูก/ปาก (muzzle)
-  if (snout > 0) {
-    const sw = hp.snoutW ?? 0.46
-    const muzzle = group(0, -R * (longFace ? 0.12 : 0.24), R * (longFace ? 0.5 : 0.66))
+  const sw = hp.snoutW ?? 0.46
+  const muzzleR = new THREE.Vector3(
+    R * sw * (longFace ? 0.74 : 0.66),
+    R * sw * (longFace ? 0.6 : 0.46),
+    R * (0.2 + snout * 1.15),
+  )
+  const muzzleC = new THREE.Vector3(
+    0,
+    -R * (longFace ? 0.14 : 0.27),
+    R * (longFace ? 0.5 : 0.7) + (longFace ? muzzleR.z * 0.5 : 0),
+  )
+  const hasMuzzle = snout > 0
+  const eyeDir = longFace
+    ? new THREE.Vector3(0.52, 0.22, 0.82)
+    : headShape === 'fish'
+      ? new THREE.Vector3(0.62, 0.08, 0.76)
+      : new THREE.Vector3(0.4, -0.04, 0.92)
+
+  const headPaint: PaintFn = (pos) => {
+    const u = pos.clone().sub(headCenter).divideScalar(R)
+    // สีท้อง = บริเวณจมูก/ปาก
+    let belly = 0
+    if (hasMuzzle) {
+      const m = u.clone().multiplyScalar(R).sub(muzzleC).divide(muzzleR).length()
+      belly = longFace
+        ? smooth(1.25, 0.9, m) * smooth(0.02, -0.12, u.y - muzzleC.y / R)
+        : smooth(1.3, 0.95, m)
+    }
+    let mark = 0
+    if (mask === 'cap' || mask === 'cape') {
+      // หมวก: คลุมกระหม่อม หู ท้ายทอย เว้นหน้าไว้ มีแฉกขาวขึ้นกลางหน้าผาก
+      const blaze = 0.2 + 0.3 * Math.exp(-(u.x * u.x) / 0.06)
+      const edge = lerp(-0.25, blaze, smooth(-0.3, 0.5, u.z))
+      const fuzz = 0.05 * Math.sin(u.x * 21) * Math.sin(u.y * 17 + u.z * 13)
+      mark = smooth(edge - 0.07, edge + 0.07, u.y + fuzz)
+    } else if (mask === 'bandit') {
+      const d = new THREE.Vector3(Math.abs(u.x), u.y, u.z).distanceTo(eyeDir.clone().normalize())
+      mark = smooth(0.52, 0.36, d)
+    } else if (mask === 'points') {
+      mark = Math.max(belly, smooth(0.55, 0.85, u.y + Math.abs(u.x) * 0.5))
+      belly = 0
+    }
+    return [belly, mark]
+  }
+  const headFur = (pos: THREE.Vector3) => {
+    const u = pos.clone().sub(headCenter).divideScalar(R)
+    // หน้าขนสั้น แก้ม/ท้ายทอยขนยาว
+    return (
+      lerp(0.95, 0.3, smooth(0.25, 0.8, u.z)) +
+      0.35 * smooth(-0.1, -0.6, u.y) * smooth(0.9, 0.4, u.z)
+    )
+  }
+
+  rig.head.add(
+    mesh(deformedBall(skull.x, skull.y, skull.z, skullDeform), mats.skin, {
+      group: headField,
+      radii: [skull.x, skull.y, skull.z],
+      paint: headPaint,
+      fur: headFur,
+    }),
+  )
+
+  if (hasMuzzle) {
+    const muzzle = group(muzzleC.x, muzzleC.y, muzzleC.z)
     muzzle.rotation.x = (hp.snoutDrop ?? 0) * 0.7
-    const len = R * (0.26 + snout * 1.25)
-    const mz = len * (longFace ? 0.55 : 0.2)
-    const muzzleCenterY = () => rig.head.position.y + bodyRestY + muzzle.position.y
-    const mm = mesh(ball(R * sw * 0.8, R * sw * (longFace ? 0.62 : 0.56), len), mats.body, {
-      belly: longFace ? (pos) => smooth(0.0, -R * 0.2, pos.y - muzzleCenterY()) : 1,
-    })
-    mm.position.z = mz
-    muzzle.add(mm)
-    if (!longFace && p.parts.head.shape !== 'fish') {
-      const nose = mesh(ball(R * 0.075, R * 0.055, R * 0.05), mats.nose, { outline: false })
-      nose.position.set(0, R * sw * 0.2, mz + len * 0.94)
+    muzzle.add(
+      mesh(ball(muzzleR.x, muzzleR.y, muzzleR.z), mats.skin, {
+        group: headField,
+        radii: [muzzleR.x, muzzleR.y, muzzleR.z],
+        paint: headPaint,
+        fur: 0.08,
+      }),
+    )
+    rig.head.add(muzzle)
+    if (!longFace && headShape !== 'fish') {
+      // จมูกสามเหลี่ยมมน
+      const nose = mesh(ball(R * 0.075, R * 0.05, R * 0.045), mats.nose)
+      nose.position.set(0, muzzleR.y * 0.42, muzzleR.z * 0.93)
       muzzle.add(nose)
     } else if (longFace) {
       for (const side of [1, -1]) {
-        const nostril = mesh(ball(R * 0.035), mats.nose, { outline: false })
-        nostril.position.set(side * R * sw * 0.32, R * sw * 0.36, mz + len * 0.8)
+        const nostril = mesh(ball(R * 0.035), mats.nose)
+        nostril.position.set(side * muzzleR.x * 0.42, muzzleR.y * 0.5, muzzleR.z * 0.8)
         muzzle.add(nostril)
       }
     }
-    rig.head.add(muzzle)
   }
   if (hp.beak) {
-    const beak = mesh(bentCone(R * 0.24, R * (0.3 + hp.beak), 0, 12), mats.accent)
+    const beak = mesh(bentCone(R * 0.22, R * (0.26 + hp.beak), 0, 12), mats.accent, {
+      tip: () => 0,
+    })
     beak.scale.set(1, 1, 0.72)
     beak.rotation.x = Math.PI / 2
-    beak.position.set(0, -R * 0.14, R * 0.78)
+    beak.position.set(0, -R * 0.2, R * 0.8)
     rig.head.add(beak)
   }
 
-  // ───────── ดวงตา + แก้ม ─────────
-  const eyeDir = longFace
-    ? new THREE.Vector3(0.56, 0.3, 0.76)
-    : p.parts.head.shape === 'fish'
-      ? new THREE.Vector3(0.66, 0.12, 0.72)
-      : new THREE.Vector3(0.42, 0.1, 0.9)
-  const eyeR = R * 0.2 * s.eyeScale
-  const eyeShape = p.parts.eyes.shape
-  for (const side of [1, -1] as const) {
+  // ปอยขนที่แก้ม (เฉพาะสายพันธุ์ขนฟู หน้าสั้น)
+  if (furry && !longFace && headShape !== 'fish' && headShape !== 'bird') {
+    const tuftLen = R * lerp(0.2, 0.42, furGene)
+    for (const [dy, angle, len] of [
+      [-0.16, -0.25, 1],
+      [-0.34, -0.6, 0.85],
+      [-0.5, -0.95, 0.6],
+    ] as const) {
+      mirrored(
+        () => {
+          const g = group()
+          g.rotation.set(0, 0, -Math.PI / 2 + angle)
+          const tuft = mesh(bentCone(R * 0.15, tuftLen * len, -0.25, 10), mats.skin, {
+            paint: headPaint,
+            fur: 1.2,
+          })
+          tuft.scale.z = 0.6
+          g.add(tuft)
+          return g
+        },
+        rig.head,
+        skull.x * (0.86 + dy * 0.25),
+        skull.y * dy,
+        R * 0.08,
+      )
+    }
+  }
+
+  // ═════════ ดวงตา + ปาก + แก้มแดง ═════════
+  const eyeW = R * (longFace ? 0.17 : 0.235) * s.eyeScale
+  const eyeH = eyeW * 1.26
+  const faceLift = R * 0.014 + mats.furLength * 0.45
+  const face = rig.face
+  extraMaterials.push(...face.all)
+  ;([1, -1] as const).forEach((side, i) => {
     const dir = eyeDir
       .clone()
       .setX(eyeDir.x * side)
       .normalize()
-    const eye = group(dir.x * R * wide * 0.9, dir.y * R * tall * 0.9, dir.z * R * 0.95 * 0.9)
-    eye.lookAt(eye.position.clone().add(dir.clone().add(new THREE.Vector3(0, 0, 0.9))))
-    const lids = group()
-    eye.add(lids)
-
-    const colored = eyeShape === 'slit' || eyeShape === 'sparkle'
-    lids.add(
-      mesh(ball(eyeR, eyeR * 1.18, eyeR * 0.5), colored ? mats.eyeIris : mats.eyeDark, {
-        outline: false,
+    const eye = new THREE.Mesh(
+      projectedCap({
+        dir,
+        halfW: eyeW,
+        halfH: eyeH,
+        ell: skull,
+        lift: faceLift,
+        deform: skullDeform,
       }),
+      face.eyes[i] as THREE.ShaderMaterial,
     )
-    if (eyeShape === 'slit') {
-      const pupil = mesh(ball(eyeR * 0.24, eyeR * 0.92, eyeR * 0.3), mats.eyeDark, {
-        outline: false,
-      })
-      pupil.position.z = eyeR * 0.3
-      lids.add(pupil)
-    } else if (eyeShape === 'sparkle') {
-      const pupil = mesh(ball(eyeR * 0.68, eyeR * 0.84, eyeR * 0.3), mats.eyeDark, {
-        outline: false,
-      })
-      pupil.position.set(0, eyeR * 0.08, eyeR * 0.3)
-      lids.add(pupil)
-    }
-    const shines: [number, number, number][] =
-      eyeShape === 'sparkle'
-        ? [
-            [-0.28, 0.42, 0.34],
-            [0.3, -0.3, 0.2],
-            [0.34, 0.28, 0.1],
-          ]
-        : [
-            [-0.26, 0.4, 0.28],
-            [0.26, -0.28, 0.13],
-          ]
-    for (const [sx, sy, sr] of shines) {
-      const shine = mesh(ball(eyeR * sr, eyeR * sr, eyeR * 0.12), mats.eyeShine, { outline: false })
-      shine.position.set(sx * eyeR * side, sy * eyeR, eyeR * 0.5)
-      lids.add(shine)
-    }
+    eye.renderOrder = 3
     rig.head.add(eye)
-    rig.eyes.push({ group: lids, baseOpen: eyeShape === 'sleepy' ? 0.55 : 1 })
+    rig.eyes.push(eye)
 
-    const blushDir = new THREE.Vector3(
-      eyeDir.x * 1.55 * side,
-      eyeDir.y - 0.42,
-      eyeDir.z,
-    ).normalize()
-    const blush = mesh(new THREE.CircleGeometry(R * 0.13, 20), mats.blush, { outline: false })
-    blush.scale.set(1.25, 0.8, 1)
-    blush.position.set(
-      blushDir.x * R * wide * (1 + cheeks * 0.12) * 1.02,
-      blushDir.y * R * tall * 1.02,
-      blushDir.z * R * 0.95 * 1.02,
+    const blushDir = new THREE.Vector3(eyeDir.x * 1.5 * side, eyeDir.y - 0.4, eyeDir.z).normalize()
+    const blush = new THREE.Mesh(
+      projectedCap({
+        dir: blushDir,
+        halfW: R * 0.15,
+        halfH: R * 0.09,
+        ell: skull,
+        lift: faceLift,
+        deform: skullDeform,
+      }),
+      face.blush,
     )
-    blush.lookAt(blush.position.clone().add(blushDir))
     blush.renderOrder = 2
     rig.head.add(blush)
+  })
+  if (hasMuzzle && !longFace && headShape !== 'fish') {
+    const mouth = new THREE.Mesh(
+      projectedCap({
+        dir: new THREE.Vector3(0, -0.5, 1),
+        halfW: muzzleR.x * 0.78,
+        halfH: muzzleR.x * 0.78,
+        ell: muzzleR,
+        lift: R * 0.01 + mats.furLength * 0.24,
+      }),
+      face.mouth,
+    )
+    mouth.position.copy(muzzleC)
+    mouth.renderOrder = 3
+    rig.head.add(mouth)
   }
 
-  // ───────── หู ─────────
+  // ═════════ หู ═════════
   const ep = p.parts.ears.params
   const earLen = R * (ep.len ?? 0.5) * s.earScale
   const earW = R * (ep.width ?? 0.4)
+  const earPaint: PaintFn = () => [0, mask === 'none' || mask === 'bandit' ? 0 : 1]
   const addEars = (
     x: number,
     y: number,
     z: number,
     rest: [number, number, number],
-    build: () => THREE.Object3D,
+    build: () => THREE.Object3D[],
   ) => {
     for (const { pivot, side } of mirrored(
       () => {
         const g = group()
         g.rotation.set(...rest)
-        g.add(build())
+        g.add(...build())
         return g
       },
       rig.head,
-      x * R * wide,
-      y * R * tall,
+      x * skull.x,
+      y * skull.y,
       z * R,
     )) {
       rig.ears.push({ pivot, side, rest: pivot.rotation.clone() })
     }
   }
+  /** หู = ด้านนอก (สีตัว) + ด้านใน (สีชมพู) ซ้อนเยื้องมาข้างหน้า */
+  const earPair = (outer: THREE.BufferGeometry, inner: THREE.BufferGeometry, flat: number) => {
+    const out = mesh(outer, mats.skin, { paint: earPaint, fur: 0.22 })
+    out.scale.z = flat
+    const inn = mesh(inner, mats.inner)
+    inn.scale.set(0.66, 0.74, flat * 0.7)
+    inn.position.set(0, earLen * 0.04, earW * 0.2 * flat + 0.012 + mats.furLength * 0.25)
+    return [out, inn]
+  }
   switch (p.parts.ears.shape) {
     case 'point':
-      addEars(0.52, 0.7, 0, [-0.1, 0, -0.38], () => {
-        const m = mesh(bentCone(earW * 0.62, earLen, 0.08), mats.body)
-        m.scale.z = 0.5
-        return m
-      })
+      addEars(0.56, 0.66, 0.02, [-0.08, 0.15, -0.42], () =>
+        earPair(
+          bentCone(earW * 0.82, earLen * 1.25, 0.06),
+          bentCone(earW * 0.82, earLen * 1.25, 0.06),
+          0.42,
+        ),
+      )
       break
     case 'long':
-      addEars(0.34, 0.82, -0.05, [-0.12, 0, -0.16], () => {
-        const m = mesh(standingCapsule(earW * 0.8, earLen), mats.body)
-        m.scale.z = 0.45
-        return m
-      })
+      addEars(0.34, 0.8, -0.05, [-0.12, 0.1, -0.16], () =>
+        earPair(standingCapsule(earW * 0.85, earLen), standingCapsule(earW * 0.85, earLen), 0.42),
+      )
       break
     case 'round':
-      addEars(0.66, 0.66, 0, [0, 0, 0], () => {
-        const m = mesh(ball(earW * 0.72 * s.earScale), mats.body)
-        m.scale.z = 0.5
-        return m
-      })
+      addEars(0.66, 0.66, 0, [0, 0.1, 0], () =>
+        earPair(ball(earW * 0.78 * s.earScale), ball(earW * 0.78 * s.earScale), 0.5),
+      )
       break
     case 'floppy':
-      addEars(0.78, 0.5, 0, [0.1, 0, -0.28], () => {
-        const m = mesh(hangingCapsule(earW * 0.75, earLen), mats.body)
-        m.scale.z = 0.45
-        return m
-      })
+      addEars(0.8, 0.5, 0, [0.1, 0, -0.28], () =>
+        earPair(hangingCapsule(earW * 0.8, earLen), hangingCapsule(earW * 0.8, earLen), 0.42),
+      )
       break
     case 'fin':
-      addEars(0.8, 0.28, -0.1, [0, -0.5, 0.5], () =>
-        mesh(slab(finShape(), earLen, R * 0.06), mats.membrane),
-      )
+      addEars(0.8, 0.28, -0.1, [0, -0.5, 0.5], () => [
+        mesh(slab(finShape(), earLen, R * 0.06), mats.membrane, { tip: (l) => l.x / earLen }),
+      ])
       break
     case 'tuft':
-      addEars(0.2, 0.9, -0.05, [-0.5, 0, -0.3], () =>
-        mesh(bentCone(earW * 0.5, earLen, 0.3, 8), mats.body),
-      )
+      addEars(0.2, 0.9, -0.05, [-0.5, 0, -0.3], () => [
+        mesh(bentCone(earW * 0.5, earLen, 0.3, 8), mats.skin, { paint: earPaint, fur: 1 }),
+      ])
       break
   }
 
-  // ───────── เขา ─────────
+  // ═════════ เขา ═════════
   const hs = s.hornScale
-  const horn = (r: number, h: number, bend: number, mat: THREE.Material = mats.accent) =>
-    mesh(bentCone(R * r * hs, R * h * hs, bend), mat)
+  const horn = (r: number, h: number, bend: number) =>
+    mesh(bentCone(R * r * hs, R * h * hs, bend, 16), mats.accent, {
+      tip: (l) => l.y / (R * h * hs),
+    })
   const hornPair = (
     x: number,
     y: number,
@@ -379,17 +542,17 @@ export function buildCreature(p: Phenotype, s: BodySpec): BuiltCreature {
         return g
       },
       rig.head,
-      x * R * wide,
-      y * R * tall,
+      x * skull.x,
+      y * skull.y,
       z * R,
     )
   switch (p.parts.horns.shape) {
     case 'nub':
-      hornPair(0.32, 0.86, 0.22, [0.2, 0, -0.25], () => horn(0.11, 0.2, 0))
+      hornPair(0.3, 0.88, 0.2, [0.2, 0, -0.25], () => horn(0.12, 0.22, 0))
       break
     case 'spiral': {
       const h = horn(0.1, 0.95, -0.06)
-      h.position.set(0, R * tall * 0.86, R * 0.42)
+      h.position.set(0, skull.y * 0.86, R * 0.42)
       h.rotation.x = 0.5
       rig.head.add(h)
       break
@@ -397,14 +560,19 @@ export function buildCreature(p: Phenotype, s: BodySpec): BuiltCreature {
     case 'crystal': {
       const g = new THREE.OctahedronGeometry(R * 0.2 * hs)
       g.scale(0.7, 1.9, 0.7)
-      const h = mesh(g, mats.accent)
-      h.position.set(0, R * tall * 1.1, R * 0.34)
+      const h = mesh(g, mats.accent, { tip: (l) => l.y / (R * 0.4 * hs) })
+      h.position.set(0, skull.y * 1.1, R * 0.34)
       h.rotation.x = 0.35
       rig.head.add(h)
       break
     }
     case 'curved':
-      hornPair(0.4, 0.8, 0.05, [-0.5, 0, -0.45], () => horn(0.13, 0.72, 0.45))
+      // เขาโค้งเรียบชี้ขึ้น-เข้าหากันเล็กน้อย
+      hornPair(0.28, 0.84, 0.12, [-0.25, 0, -0.5], () => {
+        const h = horn(0.17, 0.6, 0.5)
+        h.rotation.y = Math.PI / 2
+        return h
+      })
       break
     case 'antler':
       hornPair(0.3, 0.84, 0.15, [-0.1, 0, -0.45], () => {
@@ -426,23 +594,24 @@ export function buildCreature(p: Phenotype, s: BodySpec): BuiltCreature {
       nose.position.set(0, R * 0.2, R * (0.9 + snout * 0.9))
       nose.rotation.x = 0.4
       rig.head.add(nose)
-      const frill = mesh(ball(R * 1.22 * wide, R * 1.12, R * 0.2), mats.body, { belly: 0.35 })
-      frill.position.set(0, R * 0.3, -R * 0.52)
+      const frill = mesh(ball(skull.x * 1.2, R * 1.1, R * 0.2), mats.skin, {
+        paint: () => [0.35, mask === 'cape' ? 1 : 0],
+        fur: 0,
+      })
+      frill.position.set(0, R * 0.3, -R * 0.5)
       frill.rotation.x = -0.35
       rig.head.add(frill)
       break
     }
   }
 
-  // ───────── ปีก / ครีบข้าง ─────────
-  const span = (p.parts.wings.params.span ?? 1) * s.wingScale * (rx + ry) * 0.95
-  const upright = s.posture === 'upright'
-  const wingAnchor: [number, number, number] =
-    s.posture === 'upright'
-      ? [rx * 0.82, ry * 0.3, -rz * 0.25]
-      : s.posture === 'float'
-        ? [rx * 0.86, -ry * 0.15, rz * 0.2]
-        : [rx * 0.5, ry * 0.72, -rz * 0.05]
+  // ═════════ ปีก / ครีบข้าง ═════════
+  const span = (p.parts.wings.params.span ?? 1) * s.wingScale * (rx + ry) * 1.15
+  const wingAnchor: [number, number, number] = upright
+    ? [rx * 0.8, ry * 0.3, -rz * 0.3]
+    : floating
+      ? [rx * 0.86, -ry * 0.15, rz * 0.2]
+      : [rx * 0.8, ry * 0.5, -rz * 0.1]
   const addWings = (rest: [number, number, number], build: () => THREE.Object3D[]) => {
     for (const { pivot, side } of mirrored(
       () => {
@@ -457,64 +626,110 @@ export function buildCreature(p: Phenotype, s: BodySpec): BuiltCreature {
       rig.wings.push({ pivot, side, rest: pivot.rotation.clone() })
     }
   }
+  /** ปีกขนนก: ขนปีกเรียงเป็นพัด 2 ชั้น */
+  const featherWing = (): THREE.Object3D[] => {
+    const out: THREE.Object3D[] = []
+    const rows: [number, number, number, number][] = [
+      // [มุม, ความยาว, ระยะเยื้องหน้า-หลัง, ความกว้าง]
+      [0.62, 1.0, 0, 0.17],
+      [0.3, 0.96, 0, 0.17],
+      [-0.02, 0.86, 0, 0.17],
+      [-0.34, 0.72, 0, 0.17],
+      [-0.66, 0.56, 0, 0.17],
+      [0.45, 0.6, 0.02, 0.2],
+      [0.1, 0.56, 0.02, 0.2],
+      [-0.28, 0.46, 0.02, 0.2],
+    ]
+    for (const [angle, length, zOff, width] of rows) {
+      const len = span * length
+      const feather = mesh(slab(petalShape(0.5, 0, 0.5, width, 0), len, 0.03), mats.membrane, {
+        tip: (l) => l.x / len,
+      })
+      feather.rotation.z = angle
+      feather.position.z = zOff
+      out.push(feather)
+    }
+    return out
+  }
   switch (p.parts.wings.shape) {
     case 'feather':
-      addWings(upright ? [0.15, -0.35, -0.6] : [0, -0.6, 0.35], () => [
-        mesh(slab(featherWingShape(), span, 0.05), mats.body),
-      ])
+      addWings(upright ? [0.1, -0.5, -0.2] : [0.25, -0.25, 0.5], featherWing)
       break
     case 'bat':
       addWings(upright ? [0, -0.75, 0.1] : [0, -0.7, 0.4], () => [
-        mesh(slab(batWingShape(), span * (upright ? 0.8 : 1), 0.035), mats.membrane),
+        mesh(slab(batWingShape(), span * (upright ? 0.85 : 1.05), 0.035), mats.membrane, {
+          tip: (l) => l.x / span,
+        }),
       ])
       break
     case 'fairy':
       addWings(upright ? [0, -0.6, 0.15] : [0, -0.55, 0.3], () => [
-        mesh(slab(petalShape(0.5, 0.3, 0.5, 0.22, 0.4), span, 0.012), mats.sheer, {
-          outline: false,
+        mesh(slab(petalShape(0.5, 0.3, 0.5, 0.22, 0.4), span, 0.012), mats.membrane, {
+          tip: (l) => l.x / span,
         }),
-        mesh(slab(petalShape(0.36, -0.16, 0.36, 0.15, -0.35), span, 0.012), mats.sheer, {
-          outline: false,
+        mesh(slab(petalShape(0.36, -0.16, 0.36, 0.15, -0.35), span, 0.012), mats.membrane, {
+          tip: (l) => l.x / span,
         }),
       ])
       break
     case 'fin':
-      addWings([0.3, -0.7, -0.35], () => [mesh(slab(finShape(), span * 0.8, 0.04), mats.membrane)])
+      addWings([0.3, -0.7, -0.35], () => [
+        mesh(slab(finShape(), span * 0.8, 0.04), mats.membrane, { tip: (l) => l.x / span }),
+      ])
       break
   }
 
-  // ───────── หาง ─────────
+  // ═════════ หาง ═════════
   const tp = p.parts.tail.params
-  const tailLen = (tp.len ?? 0.5) * s.tailScale * (rz + ry) * 0.9
-  const tailAnchor: [number, number, number] =
-    s.posture === 'upright' ? [0, -ry * 0.5, -rz * 0.86] : [0, ry * 0.2, -rz * 0.9]
-  const tailBase = group(...tailAnchor)
+  const tailLen = (tp.len ?? 0.5) * s.tailScale * (rz + ry) * 0.95
+  const tailBase = group(
+    ...((upright ? [0, -ry * 0.5, -rz * 0.84] : [0, ry * 0.15, -rz * 0.86]) as [
+      number,
+      number,
+      number,
+    ]),
+  )
   rig.body.add(tailBase)
+  const tailStart = bodyCenter.clone().add(tailBase.position)
+  const tailPaint: PaintFn = (pos) => {
+    const t = THREE.MathUtils.clamp(pos.distanceTo(tailStart) / Math.max(tailLen, 0.01), 0, 1)
+    if (tailmark === 'tip') return [0, smooth(0.25, 0.7, t)]
+    if (tailmark === 'rings') return [0, smooth(0.25, 0.5, Math.sin(t * 16))]
+    return [0, mask === 'points' ? 1 : 0]
+  }
   /** หางเป็นโซ่ข้อต่อ: แต่ละข้อเป็นลูกกลมซ้อนกัน ยื่นไปทาง -Z */
   const chain = (
     count: number,
     radius: (t: number) => number,
     curl: number,
     yaw = 0,
-    mat: THREE.Material = mats.body,
-    belly = 0,
+    cfg: { mat?: THREE.Material; fur?: number; belly?: number } = {},
   ): THREE.Group => {
     const joints: THREE.Group[] = []
     const step = tailLen / count
+    const field = new FieldGroup(step * 0.6)
     let parent: THREE.Object3D = tailBase
     for (let i = 0; i < count; i++) {
       const joint = group(0, 0, i === 0 ? 0 : -step)
       joint.rotation.x = curl
       if (i === 0) joint.rotation.y = yaw
       const r = radius(i / Math.max(1, count - 1))
-      const seg = mesh(ball(r, r, Math.max(r, step)), mat, { belly })
+      const rzSeg = Math.max(r, step)
+      const skinMat = !cfg.mat || cfg.mat === mats.skin
+      const seg = mesh(ball(r, r, rzSeg), cfg.mat ?? mats.skin, {
+        group: skinMat ? field : undefined,
+        radii: [r, r, rzSeg],
+        paint: cfg.belly ? () => [cfg.belly as number, 0] : tailPaint,
+        fur: cfg.fur ?? 0.8,
+        tip: () => i / Math.max(1, count - 1),
+      })
       seg.position.z = -step * 0.5
       joint.add(seg)
       parent.add(joint)
       parent = joint
       joints.push(joint)
     }
-    rig.tails.push({ joints, rest: joints.map((j) => j.rotation.x), yaw })
+    rig.tails.push({ base: tailBase, joints, rest: joints.map((j) => j.rotation.x), yaw })
     const tip = group(0, 0, -step)
     parent.add(tip)
     return tip
@@ -525,40 +740,53 @@ export function buildCreature(p: Phenotype, s: BodySpec): BuiltCreature {
       chain(1, () => baseR * 0.4, 0.3)
       break
     case 'thin':
-      chain(7, (t) => THREE.MathUtils.lerp(0.055, 0.04, t), 0.24)
+      chain(7, (t) => lerp(0.055, 0.042, t), 0.24, 0, { fur: 0.6 })
+      break
+    case 'fluffy':
+      // หางฟูทรงหยดน้ำ: โคนเรียว กลางป่อง ปลายมน
+      chain(6, (t) => baseR * (0.8 + 1.75 * Math.sin(Math.PI * Math.pow(t, 0.7) * 0.9)), 0.1, 0, {
+        fur: 2.1,
+      })
       break
     case 'twin':
-      chain(7, (t) => THREE.MathUtils.lerp(0.05, 0.038, t), 0.24, 0.38)
-      chain(7, (t) => THREE.MathUtils.lerp(0.05, 0.038, t), 0.24, -0.38)
+      chain(7, (t) => lerp(0.05, 0.038, t), 0.24, 0.38, { fur: 0.6 })
+      chain(7, (t) => lerp(0.05, 0.038, t), 0.24, -0.38, { fur: 0.6 })
       break
     case 'pom':
-      chain(1, () => 0.12 * s.tailScale, 0.2, 0, mats.body, 1)
+      chain(1, () => 0.12 * s.tailScale, 0.2, 0, { belly: 1, fur: 1.8 })
       break
     case 'thick':
-      chain(6, (t) => THREE.MathUtils.lerp(baseR * 0.95, 0.035, t), 0.07)
+      chain(6, (t) => lerp(baseR * 0.95, 0.035, t), 0.07, 0, { fur: 0.5 })
       break
     case 'spade': {
-      const tip = chain(7, (t) => THREE.MathUtils.lerp(baseR * 0.7, 0.03, t), 0.12)
-      const spade = mesh(slab(spadeShape(), 0.2 * s.tailScale, 0.04), mats.accent)
+      const tip = chain(7, (t) => lerp(baseR * 0.7, 0.03, t), 0.12, 0, { fur: 0.4 })
+      const spade = mesh(slab(spadeShape(), 0.2 * s.tailScale, 0.04), mats.accent, {
+        tip: (l) => l.x / 0.2,
+      })
       spade.rotation.set(0, Math.PI / 2, 0)
       spade.position.z = 0.03
       tip.add(spade)
       break
     }
     case 'flowy':
-      chain(5, (t) => 0.05 + Math.sin(t * Math.PI * 0.85) * 0.075, -0.2, 0, mats.accent)
+      chain(5, (t) => 0.05 + Math.sin(t * Math.PI * 0.85) * 0.075, -0.2, 0, { mat: mats.accent })
       break
     case 'fan': {
       const tip = chain(1, () => baseR * 0.35, 0.5)
-      const fan = mesh(slab(fanShape(), tailLen * 1.1, 0.04), mats.body)
+      const fan = mesh(slab(fanShape(), tailLen * 1.1, 0.04), mats.skin, {
+        paint: tailPaint,
+        fur: 0,
+      })
       fan.rotation.x = -Math.PI / 2 + 0.2
       fan.position.z = tailLen * 0.7
       tip.add(fan)
       break
     }
     case 'fish': {
-      const tip = chain(3, (t) => THREE.MathUtils.lerp(baseR * 0.75, baseR * 0.28, t), 0)
-      const fin = mesh(slab(fishTailShape(), tailLen * 0.85, 0.035), mats.membrane)
+      const tip = chain(3, (t) => lerp(baseR * 0.75, baseR * 0.28, t), 0, 0, { fur: 0 })
+      const fin = mesh(slab(fishTailShape(), tailLen * 0.85, 0.035), mats.membrane, {
+        tip: (l) => l.x / (tailLen * 0.85),
+      })
       fin.rotation.y = Math.PI / 2
       fin.position.z = tailLen * 0.12
       tip.add(fin)
@@ -566,80 +794,100 @@ export function buildCreature(p: Phenotype, s: BodySpec): BuiltCreature {
     }
   }
 
-  // ───────── ขา / แขน / ครีบ ─────────
+  // ═════════ ขา / แขน / ครีบ ═════════
   const limb = p.parts.limbs.shape
-  const legTop = hipY + ry * 0.3
+  const legPaint: PaintFn = (pos) => {
+    if (socks === 'socks') return [0, smooth(legTop * 0.55, legTop * 0.3, pos.y)]
+    if (socks === 'gloves') return [0, smooth(legTop * 1.0, legTop * 0.75, pos.y)]
+    return [0, mask === 'points' ? smooth(legTop * 0.7, legTop * 0.3, pos.y) : 0]
+  }
   const addLeg = (
     x: number,
     z: number,
     phase: number,
-    fold: number,
     r: number,
-    foot: () => THREE.Object3D,
+    cfg: { foot: () => THREE.Object3D; haunch?: number; mat?: THREE.Material },
   ) => {
     const pivot = group(x, legTop, z)
-    pivot.add(mesh(hangingCapsule(r, legTop), mats.body))
-    const f = foot()
-    f.position.y = -legTop
-    pivot.add(f)
+    const skinMat = !cfg.mat
+    pivot.add(
+      mesh(hangingCapsule(r, legTop), cfg.mat ?? mats.skin, {
+        paint: legPaint,
+        fur: skinMat ? 0.6 : 0,
+      }),
+    )
+    const foot = cfg.foot()
+    foot.position.y = -legTop
+    pivot.add(foot)
+    if (cfg.haunch) {
+      // โคนขาหลังอวบๆ — เห็นชัดตอนนั่ง
+      const h = cfg.haunch
+      pivot.add(
+        mesh(ball(h * 0.8, h, h * 0.95), mats.skin, {
+          radii: [h * 0.8, h, h * 0.95],
+          paint: bodyPaint,
+          fur: 0.9,
+        }),
+      )
+    }
     root.add(pivot)
-    rig.legs.push({ pivot, phase, fold, restY: legTop })
+    rig.legs.push({ pivot, phase })
   }
-  if (s.posture === 'quad') {
+  const lx = rx * 0.6
+  const lz = rz * 0.5
+  if (quad) {
     const hoof = limb === 'hoof'
-    const r = s.legR * (hoof ? 0.85 : 1.05)
+    const r = s.legR * (hoof ? 0.85 : 1.08)
     const foot = () => {
-      if (hoof) {
-        const h = mesh(new THREE.CylinderGeometry(r * 1.02, r * 1.12, r * 1.3, 14), mats.accent)
-        h.position.y = r * 0.65
-        const g = group()
-        g.add(h)
-        return g
-      }
-      const paw = mesh(ball(r * 1.2, r * 0.75, r * 1.45), mats.body, { belly: 0.6 })
-      paw.position.set(0, r * 0.7, r * 0.35)
       const g = group()
-      g.add(paw)
+      if (hoof) {
+        const h = mesh(new THREE.CylinderGeometry(r * 1.02, r * 1.12, r * 1.3, 14), mats.accent, {
+          tip: () => 0,
+        })
+        h.position.y = r * 0.65
+        g.add(h)
+      } else {
+        const paw = mesh(ball(r * 1.22, r * 0.82, r * 1.5), mats.skin, {
+          radii: [r * 1.22, r * 0.82, r * 1.5],
+          paint: legPaint,
+          fur: 0.45,
+        })
+        paw.position.set(0, r * 0.75, r * 0.4)
+        g.add(paw)
+      }
       return g
     }
-    const lx = rx * 0.58
-    const lz = rz * 0.55
-    addLeg(lx, lz, 0, 1, r, foot)
-    addLeg(-lx, lz, Math.PI, 1, r, foot)
-    addLeg(lx, -lz, Math.PI, -1, r, foot)
-    addLeg(-lx, -lz, 0, -1, r, foot)
-  } else if (s.posture === 'upright') {
+    addLeg(lx, lz, 0, r, { foot })
+    addLeg(-lx, lz, Math.PI, r, { foot })
+    addLeg(lx, -lz, Math.PI, r, { foot, haunch: ry * 0.62 })
+    addLeg(-lx, -lz, 0, r, { foot, haunch: ry * 0.62 })
+  } else if (upright) {
     const bird = limb === 'biped'
     const r = s.legR * (bird ? 0.8 : 1.25)
     const foot = () => {
-      const f = mesh(ball(r * 1.5, r * 0.6, r * 2.1), bird ? mats.accent : mats.body, {
-        belly: bird ? 0 : 0.6,
+      const g = group()
+      const f = mesh(ball(r * 1.5, r * 0.6, r * 2.1), bird ? mats.accent : mats.skin, {
+        paint: legPaint,
+        fur: bird ? 0 : 0.4,
+        tip: () => 0,
       })
       f.position.set(0, r * 0.55, r * 0.9)
-      const g = group()
       g.add(f)
       return g
     }
-    // ขานกเป็นสี accent
-    const legMat = bird ? mats.accent : mats.body
-    for (const [side, phase] of [
-      [1, 0],
-      [-1, Math.PI],
-    ] as const) {
-      const pivot = group(side * rx * 0.48, legTop, 0)
-      pivot.add(mesh(hangingCapsule(r, legTop), legMat))
-      const f = foot()
-      f.position.y = -legTop
-      pivot.add(f)
-      root.add(pivot)
-      rig.legs.push({ pivot, phase, fold: 1, restY: legTop })
-    }
+    addLeg(rx * 0.48, 0, 0, r, { foot, mat: bird ? mats.accent : undefined })
+    addLeg(-rx * 0.48, 0, Math.PI, r, { foot, mat: bird ? mats.accent : undefined })
     if (rig.wings.length === 0) {
       for (const { pivot, side } of mirrored(
         () => {
           const g = group()
           g.rotation.set(0.25, 0, 0.5)
-          g.add(mesh(hangingCapsule(s.legR * 0.95, ry * 0.85), mats.body))
+          g.add(
+            mesh(hangingCapsule(s.legR * 0.95, ry * 0.85), mats.skin, {
+              paint: legPaint,
+              fur: 0.6,
+            }),
+          )
           return g
         },
         rig.body,
@@ -655,7 +903,10 @@ export function buildCreature(p: Phenotype, s: BodySpec): BuiltCreature {
       () => {
         const g = group()
         g.rotation.set(0.2, -0.5, -0.9)
-        const f = mesh(ball(rx * 0.26, rx * 0.5, rx * 0.12), mats.body, { belly: 0.3 })
+        const f = mesh(ball(rx * 0.26, rx * 0.5, rx * 0.12), mats.skin, {
+          paint: () => [0.3, 0],
+          fur: 0,
+        })
         f.position.y = -rx * 0.4
         g.add(f)
         return g
@@ -669,36 +920,222 @@ export function buildCreature(p: Phenotype, s: BodySpec): BuiltCreature {
     }
   }
 
-  // ───────── อบข้อมูลลาย + เส้นขอบ ─────────
+  // ═════════ ปลอกคอ + กระดิ่ง ═════════
+  if (opts.collar && !floating) {
+    const axis = headRest.clone().normalize()
+    const neckR = Math.min(rx * 1.02, R * 0.66) + mats.furLength * 1.5
+    const collar = group()
+    collar.position.copy(headRest).multiplyScalar(quad ? 0.4 : 0.5)
+    collar.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis)
+    const band = mesh(new THREE.TorusGeometry(neckR, 0.05, 10, 40), tint('#d8455c'), {
+      tip: () => 0,
+    })
+    collar.add(band)
+    const bell = mesh(ball(0.068), tint('#f2c14e'), { tip: () => 0.6 })
+    // จุดต่ำสุดด้านหน้าของห่วง
+    const down = new THREE.Vector3(0, -axis.z, axis.y).normalize()
+    bell.position
+      .copy(down.applyQuaternion(collar.quaternion.clone().invert()))
+      .multiplyScalar(neckR + 0.035)
+    collar.add(bell)
+    rig.body.add(collar)
+  }
+
+  // ═════════ ท่าทาง ═════════
+  const zeroHead = { headPitch: 0, headYaw: 0, headRoll: 0, headDrop: 0, tailPitch: 0, tailYaw: 0 }
+  const legAt = (x: number, y: number, z: number, rxAngle = 0, ryAngle = 0): LegPose => ({
+    x,
+    y,
+    z,
+    rx: rxAngle,
+    ry: ryAngle,
+  })
+  if (quad) {
+    const pitch = -0.82
+    const sitY = Math.hypot(ry * Math.cos(pitch), rz * Math.sin(pitch)) * 0.98
+    const low = s.legR * 1.15
+    rig.poses = {
+      stand: {
+        bodyY: standY,
+        bodyZ: 0,
+        bodyPitch: 0,
+        ...zeroHead,
+        legs: [
+          legAt(lx, legTop, lz),
+          legAt(-lx, legTop, lz),
+          legAt(lx, legTop, -lz),
+          legAt(-lx, legTop, -lz),
+        ],
+      },
+      sit: {
+        bodyY: sitY,
+        bodyZ: -rz * 0.12,
+        bodyPitch: pitch,
+        ...zeroHead,
+        tailPitch: -pitch + 0.36,
+        tailYaw: 2.2,
+        legs: [
+          legAt(rx * 0.44, legTop, rz * 0.34),
+          legAt(-rx * 0.44, legTop, rz * 0.34),
+          legAt(rx * 0.92, low, -rz * 0.2, -1.42, 0.38),
+          legAt(-rx * 0.92, low, -rz * 0.2, -1.42, -0.38),
+        ],
+      },
+      lie: {
+        bodyY: ry * 0.94,
+        bodyZ: 0,
+        bodyPitch: 0,
+        ...zeroHead,
+        headPitch: 0.08,
+        headDrop: R * 0.3,
+        tailYaw: 0.9,
+        legs: [
+          legAt(rx * 0.5, low, rz * 0.55, -1.45, 0.1),
+          legAt(-rx * 0.5, low, rz * 0.55, -1.45, -0.1),
+          legAt(rx * 0.85, low, -rz * 0.3, -1.45, 0.4),
+          legAt(-rx * 0.85, low, -rz * 0.3, -1.45, -0.4),
+        ],
+      },
+      curl: {
+        bodyY: ry * 0.94,
+        bodyZ: 0,
+        bodyPitch: 0,
+        ...zeroHead,
+        headPitch: 0.16,
+        headYaw: 0.5,
+        headRoll: 0.28,
+        headDrop: R * 0.36,
+        tailYaw: 1.7,
+        legs: [
+          legAt(rx * 0.5, low, rz * 0.5, -1.45, 0.5),
+          legAt(-rx * 0.4, low, rz * 0.5, -1.45, 0.3),
+          legAt(rx * 0.85, low, -rz * 0.3, -1.45, 0.5),
+          legAt(-rx * 0.8, low, -rz * 0.3, -1.45, -0.2),
+        ],
+      },
+    }
+  } else if (upright) {
+    const legs = [legAt(rx * 0.48, legTop, 0), legAt(-rx * 0.48, legTop, 0)]
+    const squat = s.legLen * 0.75
+    const sitLegs = [
+      legAt(rx * 0.52, legTop - squat, rz * 0.1, -1.1, 0.2),
+      legAt(-rx * 0.52, legTop - squat, rz * 0.1, -1.1, -0.2),
+    ]
+    const stand = { bodyY: standY, bodyZ: 0, bodyPitch: 0, ...zeroHead, legs }
+    rig.poses = {
+      stand,
+      sit: stand,
+      lie: { ...stand, bodyY: standY - squat, headDrop: R * 0.1, headPitch: 0.1, legs: sitLegs },
+      curl: {
+        ...stand,
+        bodyY: standY - squat,
+        headDrop: R * 0.16,
+        headPitch: 0.22,
+        headRoll: 0.15,
+        legs: sitLegs,
+      },
+    }
+  } else {
+    const swim = { bodyY: standY, bodyZ: 0, bodyPitch: 0, ...zeroHead, legs: [] }
+    rig.poses = {
+      stand: swim,
+      sit: swim,
+      lie: { ...swim, bodyY: ry + 0.05 },
+      curl: { ...swim, bodyY: ry + 0.05 },
+    }
+  }
+
+  // ═════════ อบข้อมูลต่อ vertex: หลอมรอยต่อ + สี + ขน ═════════
   root.updateMatrixWorld(true)
   const rootInv = root.matrixWorld.clone().invert()
-  const toCreature = new THREE.Matrix4()
-  const v = new THREE.Vector3()
-  const solids: THREE.Mesh[] = []
+  const meshes: THREE.Mesh[] = []
   root.traverse((obj) => {
-    if (obj instanceof THREE.Mesh) solids.push(obj)
+    if (obj instanceof THREE.Mesh) meshes.push(obj)
   })
+  const toCreature = new Map<THREE.Mesh, THREE.Matrix4>()
+  /** ทรงรีทุกชิ้น: ใช้ทำเงาซอกมุมข้ามชิ้นส่วน (ใต้คาง โคนขา ฯลฯ) */
+  const occluders: { inv: THREE.Matrix4; minR: number; owner: unknown }[] = []
+  for (const m of meshes) {
+    const matrix = new THREE.Matrix4().multiplyMatrices(rootInv, m.matrixWorld)
+    toCreature.set(m, matrix)
+    const part = m.userData.part as PartOpts | undefined
+    if (!part?.radii) continue
+    const ell = matrix.clone().multiply(new THREE.Matrix4().makeScale(...part.radii))
+    part.group?.addEllipsoid(ell)
+    occluders.push({
+      inv: ell.clone().invert(),
+      minR: Math.min(...part.radii),
+      owner: part.group ?? m,
+    })
+  }
+  const q = new THREE.Vector3()
+  const occlusion = (pos: THREE.Vector3, owner: unknown): number => {
+    let nearest = Infinity
+    for (const o of occluders) {
+      if (o.owner === owner) continue
+      const d = (q.copy(pos).applyMatrix4(o.inv).length() - 1) * o.minR
+      if (d < nearest) nearest = d
+    }
+    return lerp(0.35, 1, smooth(-0.03, 0.17, nearest))
+  }
+
   const geometries = new Set<THREE.BufferGeometry>()
-  for (const m of solids) {
+  const v = new THREE.Vector3()
+  const n = new THREE.Vector3()
+  const g = new THREE.Vector3()
+  const local = new THREE.Vector3()
+  for (const m of meshes) {
     const geo = m.geometry as THREE.BufferGeometry
     geometries.add(geo)
-    if (!(m.material instanceof THREE.ShaderMaterial)) continue
-    const pos = geo.getAttribute('position')
+    const part = m.userData.part as PartOpts | undefined
+    if (!part || !(m.material instanceof THREE.ShaderMaterial)) continue
+    const matrix = toCreature.get(m) as THREE.Matrix4
+    const inverse = matrix.clone().invert()
+    const normalToCreature = new THREE.Matrix3().getNormalMatrix(matrix)
+    const normalToLocal = new THREE.Matrix3().setFromMatrix4(matrix).transpose()
+    const pos = geo.getAttribute('position') as THREE.BufferAttribute
+    const nor = geo.getAttribute('normal') as THREE.BufferAttribute
     const aPat = new Float32Array(pos.count * 3)
-    const aBelly = new Float32Array(pos.count)
-    toCreature.multiplyMatrices(rootInv, m.matrixWorld)
-    const belly = m.userData.belly as number | BellyFn
+    const aPaint = new Float32Array(pos.count * 4)
+    const aFur = new Float32Array(pos.count)
+
     for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i).applyMatrix4(toCreature)
+      local.fromBufferAttribute(pos, i)
+      v.copy(local).applyMatrix4(matrix)
+      n.fromBufferAttribute(nor, i).applyMatrix3(normalToCreature).normalize()
+      let ao = occlusion(v, part.group ?? m)
+      if (part.group) {
+        const fillet = part.group.sample(v, g)
+        if (fillet > 0) {
+          const k = part.group.k
+          // ดัน vertex ออกไปบนผิวที่หลอมแล้ว + ใช้ normal ของสนามรวมตรงรอยต่อ
+          v.addScaledVector(g, fillet)
+          const w = Math.min(1, (fillet / (k * 0.25)) * 1.6)
+          n.lerp(g, w).normalize()
+          ao *= 1 - 0.3 * Math.min(1, fillet / (k * 0.25))
+          pos.setXYZ(i, ...v.clone().applyMatrix4(inverse).toArray())
+          nor.setXYZ(i, ...n.clone().applyMatrix3(normalToLocal).normalize().toArray())
+        }
+      }
       aPat.set([v.x, v.y, v.z], i * 3)
-      aBelly[i] = typeof belly === 'function' ? belly(v) : belly
+      const [belly, mark] = part.paint ? part.paint(v) : [0, 0]
+      aPaint.set(
+        [belly, mark, part.tip ? THREE.MathUtils.clamp(part.tip(local), 0, 1) : 0, ao],
+        i * 4,
+      )
+      aFur[i] = typeof part.fur === 'function' ? part.fur(v) : (part.fur ?? 0)
     }
+    pos.needsUpdate = true
+    nor.needsUpdate = true
     geo.setAttribute('aPat', new THREE.BufferAttribute(aPat, 3))
-    geo.setAttribute('aBelly', new THREE.BufferAttribute(aBelly, 1))
-    if (m.userData.outline) {
-      const line = new THREE.Mesh(geo, mats.outline)
-      line.userData.isOutline = true
-      m.add(line)
+    geo.setAttribute('aPaint', new THREE.BufferAttribute(aPaint, 4))
+    geo.setAttribute('aFur', new THREE.BufferAttribute(aFur, 1))
+
+    if (mats.shell && m.material === mats.skin && part.fur) {
+      const fur = new THREE.InstancedMesh(geo, mats.shell, mats.shells)
+      fur.frustumCulled = false
+      fur.userData.isFur = true
+      m.add(fur)
     }
   }
 
@@ -713,8 +1150,9 @@ export function buildCreature(p: Phenotype, s: BodySpec): BuiltCreature {
     size,
     footprint: Math.max(rx, rz * 0.8) * s.scale * 1.25,
     dispose() {
-      for (const g of geometries) g.dispose()
+      for (const geo of geometries) geo.dispose()
       for (const m of mats.all) m.dispose()
+      for (const m of extraMaterials) m.dispose()
     },
   }
 }

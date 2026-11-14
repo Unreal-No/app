@@ -53,6 +53,25 @@
               >อารมณ์
               <select id="emotion"></select>
             </label>
+            <label
+              >ท่าทาง
+              <select id="pose">
+                <option value="auto" selected>อัตโนมัติ</option>
+                <option value="sit">นั่ง</option>
+                <option value="stand">ยืน</option>
+                <option value="lie">หมอบ</option>
+                <option value="curl">นอนขด</option>
+              </select>
+            </label>
+            <label
+              >ขน
+              <select id="fur">
+                <option value="off">ปิด</option>
+                <option value="medium">กลาง</option>
+                <option value="high" selected>สูง</option>
+              </select>
+            </label>
+            <label class="check"><input id="collar" type="checkbox" checked /> ปลอกคอ</label>
             <label class="check"><input id="walk" type="checkbox" /> เดิน</label>
             <label class="check"><input id="sleep" type="checkbox" /> นอน</label>
             <label class="check"><input id="spin" type="checkbox" checked /> หมุนดูรอบตัว</label>

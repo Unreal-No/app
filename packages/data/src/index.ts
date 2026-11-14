@@ -9,6 +9,7 @@ import limbsJson from './alleles/limbs.json'
 import eyesJson from './alleles/eyes.json'
 import patternJson from './alleles/pattern.json'
 import specialJson from './alleles/special.json'
+import markingsJson from './alleles/markings.json'
 import catJson from './species/cat.json'
 import bunnyJson from './species/bunny.json'
 import chickJson from './species/chick.json'
@@ -102,6 +103,7 @@ export const geneDb: GeneDb = buildGeneDb({
     eyesJson,
     patternJson,
     specialJson,
+    markingsJson,
   ],
   species: [catJson, bunnyJson, chickJson, koiJson, trikeJson, dragonJson, unicornJson],
 })

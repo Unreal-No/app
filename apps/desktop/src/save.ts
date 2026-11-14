@@ -1,5 +1,6 @@
 import {
   createFounder,
+  createMochi,
   createPet,
   breed,
   geneDb,
@@ -44,7 +45,12 @@ export function savePet(pet: PetState): void {
 
 const NAMES = ['โมจิ', 'ดังโงะ', 'ถั่วแดง', 'ปุยนุ่น', 'ข้าวปั้น', 'บัวลอย', 'ทองหยิบ', 'ลูกชุบ']
 
-/** สัตว์ตัวแรก: สุ่มสายพันธุ์ มีโอกาสเป็นลูกผสมข้ามสายพันธุ์ */
+/** สัตว์ตัวแรกของผู้เล่น: "โมจิ" ตัวเอกแมว×มังกร */
+export function firstPet(): PetState {
+  return createPet('โมจิ', createMochi(), { stage: 'child', fat: 0.38, fitness: 0.4 })
+}
+
+/** สุ่มสัตว์ตัวใหม่ (เมนูทดลอง): สุ่มสายพันธุ์ มีโอกาสเป็นลูกผสมข้ามสายพันธุ์ */
 export function newPet(rng: Rng): PetState {
   const ids = Object.keys(geneDb.species)
   let genome = createFounder(rng.pick(ids), rng)

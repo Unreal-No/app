@@ -1,8 +1,14 @@
 {
   "id": "bunny",
-  "name": { "th": "กระต่าย", "en": "Bunny" },
+  "name": {
+    "th": "กระต่าย",
+    "en": "Bunny"
+  },
   "lineage": "modern",
-  "nameParts": { "prefix": ["Bun", "Usa", "Hop"], "suffix": ["bun", "pyon", "hop"] },
+  "nameParts": {
+    "prefix": ["Bun", "Usa", "Hop"],
+    "suffix": ["bun", "pyon", "hop"]
+  },
   "parts": {
     "head.shape": [
       ["head.bunny", 8],
@@ -29,7 +35,21 @@
       ["pattern.patch", 3],
       ["pattern.spots", 2]
     ],
-    "special.trait": [["special.none", 1]]
+    "special.trait": [["special.none", 1]],
+    "marking.mask": [
+      ["mask.none", 6],
+      ["mask.cap", 2],
+      ["mask.bandit", 2]
+    ],
+    "marking.socks": [
+      ["socks.none", 7],
+      ["socks.short", 3]
+    ],
+    "marking.tail": [["tailmark.none", 10]],
+    "marking.symbol": [
+      ["symbol.none", 30],
+      ["symbol.heart", 2]
+    ]
   },
   "nums": {
     "body.size": [0.36, 0.07],
@@ -43,24 +63,102 @@
     "temper.shy": [0.7, 0.15],
     "temper.affection": [0.6, 0.2],
     "temper.playful": [0.6, 0.2],
-    "temper.appetite": [0.6, 0.15]
+    "temper.appetite": [0.6, 0.15],
+    "fur.length": [0.8, 0.1],
+    "glow.level": [0.08, 0.05]
   },
   "colors": {
     "color.base": [
-      { "l": 0.96, "c": 0.015, "h": 80, "d": 0.3 },
-      { "l": 0.8, "c": 0.05, "h": 60, "d": 0.6 },
-      { "l": 0.86, "c": 0.06, "h": 350, "d": 0.2 },
-      { "l": 0.7, "c": 0.02, "h": 250, "d": 0.5 }
+      {
+        "l": 0.96,
+        "c": 0.015,
+        "h": 80,
+        "d": 0.3
+      },
+      {
+        "l": 0.8,
+        "c": 0.05,
+        "h": 60,
+        "d": 0.6
+      },
+      {
+        "l": 0.86,
+        "c": 0.06,
+        "h": 350,
+        "d": 0.2
+      },
+      {
+        "l": 0.7,
+        "c": 0.02,
+        "h": 250,
+        "d": 0.5
+      }
     ],
-    "color.belly": [{ "l": 0.98, "c": 0.01, "h": 90, "d": 0.5 }],
+    "color.belly": [
+      {
+        "l": 0.98,
+        "c": 0.01,
+        "h": 90,
+        "d": 0.5
+      }
+    ],
     "color.pattern": [
-      { "l": 0.6, "c": 0.06, "h": 50, "d": 0.6 },
-      { "l": 0.5, "c": 0.02, "h": 260, "d": 0.5 }
+      {
+        "l": 0.6,
+        "c": 0.06,
+        "h": 50,
+        "d": 0.6
+      },
+      {
+        "l": 0.5,
+        "c": 0.02,
+        "h": 260,
+        "d": 0.5
+      }
     ],
     "color.eye": [
-      { "l": 0.6, "c": 0.17, "h": 20, "d": 0.3 },
-      { "l": 0.45, "c": 0.08, "h": 50, "d": 0.7 }
+      {
+        "l": 0.6,
+        "c": 0.17,
+        "h": 20,
+        "d": 0.3
+      },
+      {
+        "l": 0.45,
+        "c": 0.08,
+        "h": 50,
+        "d": 0.7
+      }
     ],
-    "color.accent": [{ "l": 0.85, "c": 0.08, "h": 5, "d": 0.5 }]
+    "color.accent": [
+      {
+        "l": 0.85,
+        "c": 0.08,
+        "h": 5,
+        "d": 0.5
+      }
+    ],
+    "color.mark": [
+      {
+        "l": 0.75,
+        "c": 0.06,
+        "h": 50,
+        "d": 0.5
+      },
+      {
+        "l": 0.6,
+        "c": 0.02,
+        "h": 260,
+        "d": 0.5
+      }
+    ],
+    "color.inner": [
+      {
+        "l": 0.86,
+        "c": 0.09,
+        "h": 5,
+        "d": 0.5
+      }
+    ]
   }
 }

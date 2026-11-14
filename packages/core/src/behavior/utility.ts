@@ -71,11 +71,12 @@ export function scoreBehaviors(ctx: BehaviorContext): Record<Behavior, number> {
     followCursor:
       (ctx.userActive ? 1 : 0) * calm * (p.affection * 0.5 + lonely * 0.4 + p.curious * 0.15) -
       p.shy * 0.25,
-    seekAttention: calm * (ctx.userActive ? 1 : 0.3) * lonely * (0.4 + p.affection * 0.9),
-    zoomies: calm * (bored * 0.5 + emotion.arousal * 0.3) * (0.3 + p.playful * 0.9) - tired * 0.5,
+    seekAttention: calm * (ctx.userActive ? 1 : 0.3) * lonely * (0.3 + p.affection * 0.7),
+    zoomies: calm * (bored * 0.6 + emotion.arousal * 0.3) * (0.4 + p.playful * 0.9) - tired * 0.5,
     hide: p.shy * (ctx.cursorNear ? 0.9 : 0.15) * (emotion.valence < 0 ? 1.4 : 0.8),
-    beg: calm * hungry * hungry * (0.8 + p.appetite * 0.9),
-    groom: (1 - needs.hygiene) * 0.7 * (1 - p.mischief * 0.5),
+    // ขออาหารพอประมาณ: หิวแค่ไหนก็ไม่เรียกร้องจนกลบพฤติกรรมอื่น (ไม่กดดันผู้ใช้)
+    beg: calm * hungry * hungry * (0.4 + p.appetite * 0.45),
+    groom: (1 - needs.hygiene) * 0.75 * (1 - p.mischief * 0.4),
   }
 }
 

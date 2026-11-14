@@ -115,6 +115,8 @@ export type EmotionLabel =
   | 'joyful'
   | 'content'
   | 'excited'
+  | 'curious'
+  | 'shy'
   | 'sleepy'
   | 'hungry'
   | 'lonely'
@@ -127,6 +129,8 @@ export const EMOTION_NAME_TH: Record<EmotionLabel, string> = {
   joyful: 'ร่าเริง',
   content: 'สบายใจ',
   excited: 'ตื่นเต้น',
+  curious: 'สงสัย',
+  shy: 'อาย',
   sleepy: 'ง่วง',
   hungry: 'หิว',
   lonely: 'เหงา',

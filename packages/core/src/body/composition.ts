@@ -66,10 +66,11 @@ export function composeBody(p: Phenotype, nurture: Nurture = DEFAULT_NURTURE): B
   const length = n('body.length')
   const torso =
     posture === 'upright'
-      ? { rx: 0.3 * girth, ry: lerp(0.32, 0.44, length), rz: 0.28 * girth }
-      : { rx: 0.3 * girth, ry: 0.28 * girth, rz: lerp(0.36, 0.54, length) }
+      ? { rx: 0.26 * girth, ry: lerp(0.27, 0.36, length), rz: 0.24 * girth }
+      : { rx: 0.25 * girth, ry: 0.235 * girth, rz: lerp(0.28, 0.4, length) }
 
-  const legGene = lerp(0.12, 0.42, n('leg.length'))
+  // สัดส่วนชิบิ: ขาสั้นป้อม หัวโต (หัว ≈ ครึ่งหนึ่งของความสูง)
+  const legGene = lerp(0.08, 0.26, n('leg.length'))
   const legLen = posture === 'float' ? 0 : legGene * stage.leg * (posture === 'upright' ? 0.75 : 1)
 
   const score = fat - fitness * 0.25
@@ -86,17 +87,17 @@ export function composeBody(p: Phenotype, nurture: Nurture = DEFAULT_NURTURE): B
 
   return {
     posture,
-    scale: lerp(0.7, 1.45, n('body.size')) * stage.scale,
+    scale: lerp(0.75, 1.4, n('body.size')) * stage.scale,
     torso,
     belly: clamp((fat - 0.25) * 1.3),
-    headR: lerp(0.3, 0.4, n('head.size')) * stage.head,
+    headR: lerp(0.36, 0.46, n('head.size')) * stage.head,
     legLen,
-    legR: 0.075 * lerp(0.9, 1.15, n('body.girth')) * (1 + fat * 0.4 + fitness * 0.15),
+    legR: 0.082 * lerp(0.9, 1.15, n('body.girth')) * (1 + fat * 0.4 + fitness * 0.15),
     earScale: lerp(0.6, 1.4, n('ear.size')),
     hornScale: lerp(0.5, 1.4, n('horn.size')) * stage.extra,
     wingScale: lerp(0.6, 1.4, n('wing.size')) * lerp(0.7, 1, stage.extra),
     tailScale: lerp(0.6, 1.4, n('tail.size')),
-    eyeScale: lerp(0.8, 1.25, n('eye.size')),
+    eyeScale: lerp(0.85, 1.2, n('eye.size')),
     build,
   }
 }

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { DEFAULT_NURTURE, express, type Genome, type Nurture } from '@mochimon/core'
-import { createBlobShadow, Creature, type AnimInput } from '@mochimon/creature'
+import { createBlobShadow, Creature, type AnimInput, type BuildOptions } from '@mochimon/creature'
 
 /** ช่องแสดงสัตว์ 1 ตัว: ผูกกับ element บนหน้าเว็บ แล้ววาดด้วย scissor บน canvas กลาง */
 export class Slot {
@@ -10,6 +10,7 @@ export class Slot {
   genome?: Genome
   nurture: Nurture = { ...DEFAULT_NURTURE }
   spin = false
+  options: BuildOptions = { fur: 'medium' }
   yaw = -0.5
   private shadow?: THREE.Mesh
   private readonly turntable = new THREE.Group()
@@ -30,7 +31,7 @@ export class Slot {
       this.shadow = undefined
     }
     if (!genome) return
-    const creature = new Creature(express(genome), this.nurture)
+    const creature = new Creature(express(genome), this.nurture, this.options)
     this.creature = creature
     this.turntable.add(creature.root)
     this.shadow = createBlobShadow(creature.footprint)
@@ -42,10 +43,10 @@ export class Slot {
   private frame(): void {
     const size = this.creature?.size
     if (!size) return
-    const extent = Math.max(size.y, size.x * 0.9, size.z * 0.9, 0.5)
-    const dist = extent * 3.3 + 0.6
-    const cy = size.y * 0.48
-    this.camera.position.set(0, cy + dist * 0.2, dist)
+    const extent = Math.max(size.y, size.x * 0.85, size.z * 0.85, 0.5)
+    const dist = extent * 3.1 + 0.5
+    const cy = size.y * 0.44
+    this.camera.position.set(0, cy + dist * 0.09, dist)
     this.camera.lookAt(0, cy, 0)
   }
 
@@ -64,6 +65,9 @@ export class Slot {
     renderer.setScissor(rect.left, y, rect.width, rect.height)
     this.camera.aspect = rect.width / rect.height
     this.camera.updateProjectionMatrix()
+    // px ต่อหน่วยโมเดล ณ ระยะของกล้อง → ความละเอียดของขน
+    const worldHeight = 2 * this.camera.position.z * Math.tan((this.camera.fov * Math.PI) / 360)
+    this.creature.setPixelScale((rect.height * renderer.getPixelRatio()) / worldHeight)
     renderer.render(this.scene, this.camera)
   }
 }

@@ -4,6 +4,7 @@ import {
   breed,
   composeBody,
   createFounder,
+  createMochi,
   DEFAULT_NURTURE,
   EMOTION_NAME_TH,
   express,
@@ -20,6 +21,7 @@ import {
   type MutationEvent,
   type Nurture,
 } from '@mochimon/core'
+import type { PoseName } from '@mochimon/creature'
 import { extractPalette, hashFile } from './palette'
 import { Slot } from './slot'
 
@@ -81,6 +83,10 @@ function describeMutations(mutations: MutationEvent[]): string {
 
 function select(genome: Genome, note = ''): void {
   selectedNote = note
+  stage.options = {
+    fur: $<HTMLSelectElement>('fur').value as 'off' | 'medium' | 'high',
+    collar: $<HTMLInputElement>('collar').checked,
+  }
   stage.set(genome, nurture)
   renderInfo()
 }
@@ -143,6 +149,14 @@ for (const id of speciesIds) {
   slot.set(createFounder(id, rng))
 }
 
+// ตัวเอก "โมจิ" (แมว×มังกร) — ใส่ปลอกคอ + ขนคุณภาพสูง
+{
+  const slot: Slot = thumb($('gallery'), 'โมจิ ★', 'ตัวเอก', () => select(slot.genome!))
+  slot.options = { fur: 'high', collar: true }
+  slot.set(createMochi())
+  $('gallery').prepend(slot.el.parentElement!)
+}
+
 // ───────── ผสมพันธุ์ ─────────
 function setParent(which: 'a' | 'b', genome: Genome): void {
   const slot = which === 'a' ? parentA : parentB
@@ -185,7 +199,8 @@ const refreshBody = () => {
   }
   if (stage.genome) select(stage.genome, selectedNote)
 }
-for (const id of ['stage-select', 'fat', 'fitness']) $(id).addEventListener('input', refreshBody)
+for (const id of ['stage-select', 'fat', 'fitness', 'fur', 'collar'])
+  $(id).addEventListener('input', refreshBody)
 const emotionSelect = $<HTMLSelectElement>('emotion')
 for (const [value, label] of Object.entries(EMOTION_NAME_TH)) {
   emotionSelect.add(new Option(label, value, value === 'content', value === 'content'))
@@ -233,8 +248,7 @@ drop.addEventListener('drop', (e) => {
 })
 
 // ───────── เริ่มต้น ─────────
-const first = slots.find((s) => s.genome && s !== stage)?.genome
-if (first) select(first)
+select(createMochi())
 setParent('a', createFounder(params.get('a') ?? 'cat', rng))
 setParent('b', createFounder(params.get('b') ?? 'dragon', rng))
 breedNow()
@@ -255,8 +269,12 @@ function loop(): void {
   renderer.setScissorTest(true)
   const walking = $<HTMLInputElement>('walk').checked
   const asleep = $<HTMLInputElement>('sleep').checked
+  const pose = $<HTMLSelectElement>('pose').value as PoseName | 'auto'
   for (const slot of slots) {
-    slot.update(dt, slot === stage ? { emotion, speed: walking ? 0.6 : 0, asleep } : undefined)
+    slot.update(
+      dt,
+      slot === stage ? { emotion, speed: walking ? 0.6 : 0, asleep, pose } : undefined,
+    )
     slot.render(renderer, h)
   }
   requestAnimationFrame(loop)

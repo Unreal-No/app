@@ -65,6 +65,11 @@ export interface Phenotype {
     eyes: ExpressedPart
     pattern: ExpressedPart
     special: ExpressedPart
+    /** ลายแต้มบนหัว/หลัง */
+    mask: ExpressedPart
+    socks: ExpressedPart
+    tailmark: ExpressedPart
+    symbol: ExpressedPart
   }
   /** ค่าที่แสดงออกของ locus ตัวเลขทุกตัว (id -> 0..1) */
   nums: Record<string, number>
@@ -74,6 +79,10 @@ export interface Phenotype {
     pattern: ExpressedColor
     eye: ExpressedColor
     accent: ExpressedColor
+    /** สีของลายแต้ม (หมวก/ผ้าคลุม/ถุงเท้า/ปลายหาง) */
+    mark: ExpressedColor
+    /** สีในหู/อุ้งเท้า */
+    inner: ExpressedColor
   }
   temperament: Temperament
   habitat: Habitat

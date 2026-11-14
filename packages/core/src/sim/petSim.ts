@@ -79,6 +79,14 @@ const BEHAVIOR_DURATION: Record<Behavior, [number, number]> = {
   groom: [5, 10],
 }
 
+/** ผลต่อ needs ต่อวินาทีของพฤติกรรมที่สัตว์ทำเอง */
+const SELF_CARE: Partial<Record<Behavior, Partial<Needs>>> = {
+  groom: { hygiene: 0.02, comfort: 0.004 },
+  zoomies: { fun: 0.03, energy: -0.004 },
+  wander: { fun: 0.002 },
+  sit: { comfort: 0.004 },
+}
+
 /** มุมมองที่คำนวณจากสถานะ (ไม่ต้องเซฟ) */
 export interface PetView {
   phenotype: Phenotype
@@ -111,6 +119,14 @@ export function tickPet(
     userPresent: world.userActive,
     metabolism: phenotype.nums['meta.metabolism'],
   })
+  // ดูแลตัวเองได้บางส่วน: เลียขนเอง วิ่งเล่นเอง — ผู้ใช้ไม่ต้องคอยประคบประหงมตลอดเวลา
+  // (ความหิวและความเหงายังต้องพึ่งผู้ใช้ แต่ไม่มีบทลงโทษถ้าปล่อยไว้)
+  const self = SELF_CARE[pet.behavior]
+  if (self) {
+    for (const [key, perSec] of Object.entries(self) as [keyof Needs, number][]) {
+      needs[key] = Math.min(1, Math.max(0, needs[key] + perSec * dtSec))
+    }
+  }
   const emotion = tickEmotion(pet.emotion, needs, personality, dtSec)
 
   let behavior = pet.behavior

@@ -225,6 +225,22 @@ describe('petSim', () => {
     expect(seen.has('sleep')).toBe(true)
   })
 
+  it('ไม่มีใครดูแลทั้งวัน: ไม่เรียกร้องเกินครึ่งของเวลา และดูแลความสะอาด/ความสนุกเองได้', () => {
+    for (const seed of ['alone-1', 'alone-2', 'alone-3', 'alone-4']) {
+      const rng = new Rng(seed)
+      let pet = createPet('โมจิ', createFounder('cat', rng))
+      let nagging = 0
+      const ticks = 24 * 360
+      for (let i = 0; i < ticks; i++) {
+        pet = tickPet(pet, 10, { ...world, hour: (i / 360) % 24 }, rng)
+        if (pet.behavior === 'beg' || pet.behavior === 'seekAttention') nagging++
+      }
+      expect(nagging / ticks, seed).toBeLessThan(0.5)
+      expect(pet.needs.hygiene, seed).toBeGreaterThan(0.15)
+      expect(pet.needs.fun, seed).toBeGreaterThan(0.15)
+    }
+  })
+
   it('ให้อาหารแล้วหายหิว ลูบแล้วอารมณ์ดีขึ้น และปลุกได้เมื่อถูกอุ้ม', () => {
     const rng = new Rng('care')
     let pet = createPet('โมจิ', createFounder('bunny', rng))

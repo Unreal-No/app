@@ -11,7 +11,7 @@ import {
 } from '@mochimon/core'
 import { createBlobShadow, Creature } from '@mochimon/creature'
 import { getLayout, onCursor, onTray, setHitShapes, type DesktopLayout } from './bridge'
-import { loadPet, newPet, savePet } from './save'
+import { firstPet, loadPet, newPet, savePet } from './save'
 
 /** ขนาดบนจอ: 1 หน่วยโมเดล = กี่ CSS px */
 const PX_PER_UNIT = 130
@@ -78,7 +78,11 @@ class PetActor {
     }
     const view = viewPet(this.state)
     this.emotion = view.emotionLabel
-    this.creature = new Creature(view.phenotype, this.state.nurture)
+    this.creature = new Creature(view.phenotype, this.state.nurture, {
+      fur: 'medium',
+      collar: true,
+    })
+    this.creature.setPixelScale(PX_PER_UNIT)
     this.holder.add(this.creature.root)
     this.shadow = createBlobShadow(this.creature.footprint, 0.2)
     this.holder.add(this.shadow)
@@ -207,6 +211,8 @@ const LINES: Record<EmotionLabel, string[]> = {
   joyful: ['♪', 'วันนี้ดีจัง~', 'อิอิ'],
   content: ['อยู่นี่นะ', 'ฮัมม~', '…♪'],
   excited: ['เย้!', 'เล่นกัน!', 'ว้าว!'],
+  curious: ['หืม?', 'อะไรน่ะ?'],
+  shy: ['เขินจัง…', 'แหะๆ'],
   sleepy: ['ง่วงจัง…', 'หาววว', 'zzz'],
   hungry: ['หิวแล้วน้า', 'ขอขนมหน่อย~', 'ท้องร้องแล้ว…'],
   lonely: ['มาเล่นด้วยกันหน่อย', 'เหงาจัง…'],
@@ -390,7 +396,7 @@ function frame(now: number): void {
 async function start(): Promise<void> {
   applyLayout(await getLayout())
   const saved = loadPet()
-  pet = new PetActor(saved ?? newPet(rng))
+  pet = new PetActor(saved ?? firstPet())
   if (!saved) say(pet, `สวัสดี! ${pet.state.name}เอง`)
   savePet(pet.state)
 

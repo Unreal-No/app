@@ -1,11 +1,17 @@
 import * as THREE from 'three'
 import { composeBody, DEFAULT_NURTURE, type Nurture, type Phenotype } from '@mochimon/core'
 import { Animator, defaultAnimInput, type AnimInput } from './anim/animate'
-import { buildCreature, type BuiltCreature, type Rig } from './build/creature'
+import { buildCreature, type BuildOptions, type BuiltCreature, type Rig } from './build/creature'
 
 export { defaultAnimInput, type AnimInput } from './anim/animate'
-export { buildCreature, type BuiltCreature, type Rig } from './build/creature'
-export { createCreatureMaterials } from './material/toon'
+export { FACES, type FacePose } from './anim/expression'
+export {
+  buildCreature,
+  type BuildOptions,
+  type BuiltCreature,
+  type PoseName,
+  type Rig,
+} from './build/creature'
 
 /**
  * สัตว์ 1 ตัวพร้อมใช้งานใน scene: โมเดล + animation
@@ -14,7 +20,7 @@ export { createCreatureMaterials } from './material/toon'
 export class Creature {
   readonly root: THREE.Group
   readonly rig: Rig
-  /** ขนาดกล่องขอบเขตในท่าพัก */
+  /** ขนาดกล่องขอบเขตในท่ายืน */
   readonly size: THREE.Vector3
   /** รัศมีฐานลำตัวโดยประมาณ (ไม่รวมปีก/หาง) */
   readonly footprint: number
@@ -26,13 +32,15 @@ export class Creature {
   constructor(
     readonly phenotype: Phenotype,
     nurture: Nurture = DEFAULT_NURTURE,
+    options: BuildOptions = {},
   ) {
-    this.built = buildCreature(phenotype, composeBody(phenotype, nurture))
+    this.built = buildCreature(phenotype, composeBody(phenotype, nurture), options)
     this.root = this.built.root
     this.rig = this.built.rig
     this.size = this.built.size
     this.footprint = this.built.footprint
     this.animator = new Animator(this.rig)
+    this.animator.snap(this.input)
   }
 
   update(dt: number, input?: Partial<AnimInput>): void {
@@ -40,6 +48,17 @@ export class Creature {
     this.time += dt
     this.built.materials.setTime(this.time)
     this.animator.update(dt, this.input)
+  }
+
+  /** บอกขนาดบนจอ (px ต่อ 1 หน่วยของ root ก่อน scale ภายนอก) เพื่อปรับความละเอียดของขน */
+  setPixelScale(pxPerUnit: number): void {
+    this.built.materials.setPixelScale(pxPerUnit * this.root.scale.x)
+  }
+
+  /** เข้าท่า/สีหน้าตาม input ทันทีโดยไม่ค่อยๆ เปลี่ยน */
+  snap(input?: Partial<AnimInput>): void {
+    if (input) Object.assign(this.input, input)
+    this.animator.snap(this.input)
   }
 
   dispose(): void {

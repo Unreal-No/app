@@ -21,6 +21,10 @@ export const SlotSchema = z.enum([
   'eyes',
   'pattern',
   'special',
+  'mask',
+  'socks',
+  'tailmark',
+  'symbol',
 ])
 export type Slot = z.infer<typeof SlotSchema>
 
