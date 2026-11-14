@@ -44,7 +44,8 @@ void main() {
 
   // ── ตาเปิด: วงรี ตัดด้วยเปลือกตาบน ──
   float d = length(p);
-  float lid = mix(-0.35, 1.25, uOpen) - uSlant * uSide * p.x * 0.75;
+  // โกรธ = หัวตา (ด้านในใกล้จมูก) กดต่ำ, เศร้า = หางตาตก
+  float lid = mix(-0.35, 1.25, uOpen) + uSlant * uSide * p.x * 0.75;
   float inside = (1.0 - smoothstep(1.0 - aa, 1.0, d)) * (1.0 - smoothstep(lid - aa, lid, p.y));
   if (inside < 0.05) discard;
 
