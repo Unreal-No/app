@@ -14,7 +14,9 @@
 | `packages/core`     | แกนเกม TypeScript ล้วน: ยีนส์ ผสมพันธุ์ กลายพันธุ์ อัญเชิญจากไฟล์ รูปร่าง อารมณ์ นิสัย Behavior AI |
 | `packages/creature` | ตัวสร้างสัตว์ 3D แบบ procedural ด้วย three.js (ผิวตุ๊กตา ขนฟู ใบหน้า ท่าทาง)                 |
 | `apps/lab`          | Creature Lab — หน้าเว็บสำหรับดู/ผสม/อัญเชิญสัตว์ ใช้ปรับหน้าตาและทดสอบ                       |
+| `packages/habitat`  | ฉากไดโอรามาแบบ procedural 4 แบบ (ทุ่งหญ้า เกาะเมฆ ใต้น้ำ หิมะ)                          |
 | `apps/desktop`      | แอป Desktop (Tauri 2): หน้าต่างโปร่งใส อยู่บนสุด คลิกทะลุ สัตว์เดินบน Taskbar                |
+| `tools/art-bakery`  | สคริปต์ทดลองสร้างโมเดลด้วย Blender แบบไม่มีหน้าจอ                                        |
 | `docs`              | เอกสารออกแบบ                                                                      |
 
 ## เริ่มใช้งาน
@@ -25,7 +27,7 @@
 pnpm install
 pnpm test          # unit test ของแกนเกม
 pnpm typecheck
-pnpm lab           # เปิด Creature Lab ที่ http://localhost:5173
+pnpm lab           # เปิด Creature Lab ที่ http://localhost:5173 (หน้า Style Sheet: /stylesheet.html)
 ```
 
 แอป Desktop (ต้องมี Rust และ Windows 10/11 ที่มี WebView2):
@@ -47,4 +49,5 @@ pnpm desktop:build  # สร้างตัวติดตั้ง
 - [Emotion & AI — อารมณ์ นิสัย พฤติกรรม](docs/EMOTION_AI.md)
 - [Companion — ฟีเจอร์ผู้ช่วย](docs/COMPANION.md)
 - [Art Direction — แนวทางศิลป์](docs/ART_DIRECTION.md)
+- [Art Pipeline — แผนเครื่องมือเสริม](docs/ART_PIPELINE.md)
 - [Roadmap](docs/ROADMAP.md)

@@ -46,6 +46,11 @@
 4. `material/plush.ts` ผิวตุ๊กตา + ขนแบบ shell (InstancedMesh ซ้อนชั้น), `material/face.ts` ตา/ปาก/แก้มเป็น shader
 5. `anim/animate.ts` ผสมท่า (ยืน/นั่ง/หมอบ/นอนขด) + การเดิน หายใจ กะพริบตา หาง หู ปีก; `anim/expression.ts` ชุดสีหน้า
 
+## packages/habitat
+
+`createHabitat(kind)` → ฉากไดโอรามาบนแท่นกลม (ทุ่งหญ้า เกาะเมฆ ใต้น้ำ หิมะ) สร้างด้วยโค้ด มี `surfaceY` บอกระดับที่สัตว์ยืนได้
+ใช้ใน Lab และเป็น "โหมดมุมพักผ่อน" ของ Desktop ไม่ขึ้นกับ `core`/`creature`
+
 ## apps/desktop
 
 - `PetActor` (ใน `src/main.ts`) = สถานะจาก `core` + โมเดลจาก `creature` + ฟิสิกส์ง่ายๆ (เดิน ร่วง ถูกอุ้ม)

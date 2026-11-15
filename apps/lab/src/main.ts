@@ -78,6 +78,10 @@ const SLOT_ROWS: [keyof ReturnType<typeof express>['parts'], string][] = [
   ['eyes', 'ตา'],
   ['pattern', 'ลวดลาย'],
   ['special', 'พิเศษ'],
+  ['mask', 'ลายแต้ม'],
+  ['socks', 'ถุงเท้า'],
+  ['tailmark', 'ลายหาง'],
+  ['symbol', 'สัญลักษณ์'],
 ]
 
 function describeMutations(mutations: MutationEvent[]): string {
@@ -122,6 +126,7 @@ function renderInfo(): void {
     ${SLOT_ROWS.map(([key, label]) => `<tr><td>${label}</td><td>${partCell(p.parts[key])}</td></tr>`).join('')}
     <tr><td>สีหลัก / ท้อง</td><td>${swatch(p.colors.base.hex)} &nbsp; ${swatch(p.colors.belly.hex)}</td></tr>
     <tr><td>สีลาย / เขา-ปีก</td><td>${swatch(p.colors.pattern.hex)} &nbsp; ${swatch(p.colors.accent.hex)}</td></tr>
+    <tr><td>สีลายแต้ม / ในหู</td><td>${swatch(p.colors.mark.hex)} &nbsp; ${swatch(p.colors.inner.hex)}</td></tr>
     <tr><td>สีตา</td><td>${swatch(p.colors.eye.hex)}</td></tr>
   </table>`
   $('temper').innerHTML = `<table>${TRAIT_KEYS.map(
