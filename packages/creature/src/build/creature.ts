@@ -377,7 +377,7 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
 
   // ปอยขนที่แก้ม (เฉพาะสายพันธุ์ขนฟู หน้าสั้น)
   if (furry && !longFace && headShape !== 'fish' && headShape !== 'bird') {
-    const tuftLen = R * lerp(0.24, 0.52, furGene)
+    const tuftLen = R * lerp(0.3, 0.66, furGene)
     for (const [dy, angle, len] of [
       [-0.16, -0.25, 1],
       [-0.34, -0.6, 0.85],
@@ -489,7 +489,12 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
   }
   /** หู = ด้านนอก (สีตัว) + ด้านใน (สีชมพู) ซ้อนเยื้องมาข้างหน้า */
   const earPair = (outer: THREE.BufferGeometry, inner: THREE.BufferGeometry, flat: number) => {
-    const out = mesh(outer, mats.skin, { paint: earPaint, fur: 0.22 })
+    const out = mesh(outer, mats.skin, {
+      paint: earPaint,
+      fur: 0.22,
+      // โคนหู→ปลายหู ใช้ไล่สีลายแต้ม
+      tip: (l) => Math.abs(l.y) / Math.max(earLen, 0.001),
+    })
     out.scale.z = flat
     const inn = mesh(inner, mats.inner)
     inn.scale.set(0.66, 0.74, flat * 0.7)
@@ -500,8 +505,8 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
     case 'point':
       addEars(0.56, 0.66, 0.02, [-0.08, 0.15, -0.42], () =>
         earPair(
-          bentCone(earW * 0.82, earLen * 1.25, 0.06),
-          bentCone(earW * 0.82, earLen * 1.25, 0.06),
+          bentCone(earW * 0.92, earLen * 1.42, 0.06),
+          bentCone(earW * 0.92, earLen * 1.42, 0.06),
           0.42,
         ),
       )
@@ -581,7 +586,7 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
     case 'curved':
       // เขาโค้งเรียบชี้ขึ้น-เข้าหากันเล็กน้อย
       hornPair(0.28, 0.84, 0.12, [-0.25, 0, -0.5], () => {
-        const h = horn(0.2, 0.62, 0.5)
+        const h = horn(0.24, 0.7, 0.55)
         h.rotation.y = Math.PI / 2
         return h
       })
@@ -643,14 +648,16 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
     const out: THREE.Object3D[] = []
     const rows: [number, number, number, number][] = [
       // [มุม, ความยาว, ระยะเยื้องหน้า-หลัง, ความกว้าง]
-      [0.62, 1.0, 0, 0.17],
-      [0.3, 0.96, 0, 0.17],
-      [-0.02, 0.86, 0, 0.17],
-      [-0.34, 0.72, 0, 0.17],
-      [-0.66, 0.56, 0, 0.17],
-      [0.45, 0.6, 0.02, 0.2],
-      [0.1, 0.56, 0.02, 0.2],
-      [-0.28, 0.46, 0.02, 0.2],
+      [0.7, 1.0, 0, 0.19],
+      [0.4, 0.98, 0, 0.19],
+      [0.1, 0.9, 0, 0.19],
+      [-0.2, 0.78, 0, 0.19],
+      [-0.5, 0.64, 0, 0.19],
+      [-0.8, 0.5, 0, 0.19],
+      [0.55, 0.62, 0.025, 0.22],
+      [0.2, 0.6, 0.025, 0.22],
+      [-0.15, 0.52, 0.025, 0.22],
+      [-0.5, 0.42, 0.025, 0.22],
     ]
     for (const [angle, length, zOff, width] of rows) {
       const len = span * length

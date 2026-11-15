@@ -110,6 +110,7 @@ for (const [label, genome] of [
   ['Modern (กระต่าย)', bunnyBase],
 ] as const) {
   cell('base', label, (slot) => {
+    slot.zoom = 1.15
     slot.options = { fur, collar: genome === catBase }
     slot.set(genome, adult)
   })
@@ -204,8 +205,8 @@ for (const stage of ['egg', 'baby', 'child', 'teen', 'adult'] as LifeStage[]) {
   cell('stages', STAGE_TH[stage], (slot) => {
     slot.options = { fur, collar: stage !== 'egg' && stage !== 'baby' }
     // กล้องระยะเดียวกันทุกช่อง → เห็นว่าตัวโตขึ้นจริง
-    slot.fixedExtent = 1.15
-    slot.zoom = 1.25
+    slot.fixedExtent = 1.3
+    slot.zoom = 1.15
     slot.set(mochi, { ...adult, stage })
   })
 }

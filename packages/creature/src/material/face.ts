@@ -66,8 +66,8 @@ void main() {
   col = mix(col, dark, ring);
 
   // ประกายตา
-  float shine = 1.0 - smoothstep(0.24, 0.24 + aa, length(p - vec2(-0.3, 0.36)));
-  shine = max(shine, 1.0 - smoothstep(0.11, 0.11 + aa, length(p - vec2(0.34, -0.3))));
+  float shine = 1.0 - smoothstep(0.29, 0.29 + aa, length((p - vec2(-0.3, 0.36)) / vec2(1.0, 1.15)));
+  shine = max(shine, 1.0 - smoothstep(0.14, 0.14 + aa, length(p - vec2(0.34, -0.3))));
   shine = max(shine, uSparkle * (1.0 - smoothstep(0.08, 0.08 + aa, length(p - vec2(0.4, 0.4)))));
   shine = max(shine, uSparkle * (1.0 - smoothstep(0.06, 0.06 + aa, length(p - vec2(-0.42, -0.2)))));
   col = mix(col, vec3(1.0), shine * (1.0 - smoothstep(lid - 0.25, lid - 0.12, p.y)));

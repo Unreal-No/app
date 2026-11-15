@@ -60,6 +60,8 @@ const FRAGMENT = /* glsl */ `
 uniform vec3 uBase;
 uniform vec3 uBellyColor;
 uniform vec3 uMarkColor;
+uniform vec3 uMarkColor2;
+uniform float uMarkFade;
 uniform vec3 uPatternColor;
 uniform vec3 uTipColor;
 uniform vec3 uSymbolColor;
@@ -107,7 +109,9 @@ void main() {
 
   // ── สี: พื้น → ลวดลาย → ลายแต้ม → ปลาย → ท้อง/หน้า ──
   vec3 col = mix(uBase, uPatternColor, patternMask(vPat) * uPatContrast * uUsePaint);
-  col = mix(col, uMarkColor, vPaint.y * uUsePaint);
+  // ลายแต้มไล่สีไปทางสีเรืองแสงที่ปลายหู/ปลายหาง (เฉพาะตัวที่มียีนส์เรืองแสง)
+  vec3 markCol = mix(uMarkColor, uMarkColor2, vPaint.z * uMarkFade);
+  col = mix(col, markCol, vPaint.y * uUsePaint);
   col = mix(col, uTipColor, vPaint.z * (1.0 - uUsePaint));
   col = mix(col, uBellyColor, vPaint.x * uUsePaint);
 
@@ -205,6 +209,10 @@ export function createPlushMaterials(p: Phenotype, opts: PlushOptions): PlushMat
   const shared = {
     uBellyColor: { value: color(p.colors.belly.hex) },
     uMarkColor: { value: color(p.colors.mark.hex) },
+    uMarkColor2: {
+      value: color(p.colors.accent.hex).lerp(new THREE.Color('#ffffff'), 0.2),
+    },
+    uMarkFade: { value: glow * 0.9 },
     uPatternColor: { value: color(p.colors.pattern.hex) },
     uSymbolColor: { value: color(p.colors.inner.hex) },
     uSymbolPos: { value: opts.symbolPos },
@@ -270,15 +278,15 @@ export function createPlushMaterials(p: Phenotype, opts: PlushOptions): PlushMat
       base: accent,
       tip: accentTip,
       paint: false,
-      glow: glow * 0.85,
-      sheer: glow * 0.32,
+      glow: glow * 0.7,
+      sheer: glow * 0.18,
     }),
     membrane: make({
       base: accent,
       tip: accentTip,
       paint: false,
-      glow: glow * 0.8,
-      sheer: glow * 0.75,
+      glow: glow * 0.6,
+      sheer: glow * 0.42,
       side: THREE.DoubleSide,
     }),
     inner: make({ base: color(p.colors.inner.hex), paint: false }),
