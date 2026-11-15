@@ -22,6 +22,7 @@ import {
   type Nurture,
 } from '@mochimon/core'
 import type { PoseName } from '@mochimon/creature'
+import { HABITAT_KINDS, HABITAT_NAME_TH } from '@mochimon/habitat'
 import { extractPalette, hashFile } from './palette'
 import { Slot } from './slot'
 
@@ -34,10 +35,14 @@ const rng = new Rng(params.get('seed') ?? String(Date.now()))
 const canvas = $<HTMLCanvasElement>('gl')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+// ตั้งค่าสีล้างจอให้โปร่งใสตั้งแต่ก่อนวาดเฟรมแรก (ค่าตั้งต้นของ WebGL state ใน three คือทึบ)
+renderer.setClearColor(0x000000, 0)
 renderer.setScissorTest(true)
 const slots: Slot[] = []
+const thumbFur = (params.get('fur') ?? 'medium') as 'off' | 'medium' | 'high'
 const newSlot = (el: HTMLElement) => {
   const slot = new Slot(el)
+  slot.options = { fur: thumbFur }
   slots.push(slot)
   return slot
 }
@@ -152,7 +157,7 @@ for (const id of speciesIds) {
 // ตัวเอก "โมจิ" (แมว×มังกร) — ใส่ปลอกคอ + ขนคุณภาพสูง
 {
   const slot: Slot = thumb($('gallery'), 'โมจิ ★', 'ตัวเอก', () => select(slot.genome!))
-  slot.options = { fur: 'high', collar: true }
+  slot.options = { fur: thumbFur, collar: true }
   slot.set(createMochi())
   $('gallery').prepend(slot.el.parentElement!)
 }
@@ -246,6 +251,16 @@ drop.addEventListener('drop', (e) => {
   const file = e.dataTransfer?.files[0]
   if (file) void summon(file)
 })
+
+// ───────── ฉากไดโอรามา ─────────
+for (const kind of HABITAT_KINDS) {
+  const slot = thumb($('habitats'), HABITAT_NAME_TH[kind], '', () => {})
+  slot.el.style.height = '200px'
+  slot.options = { fur: thumbFur }
+  slot.yaw = 0.35
+  slot.setHabitat(kind)
+  slot.set(createFounder(rng.pick(speciesIds), rng), { ...DEFAULT_NURTURE, stage: 'child' })
+}
 
 // ───────── เริ่มต้น ─────────
 select(createMochi())

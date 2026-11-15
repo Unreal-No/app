@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { BodySpec, Phenotype } from '@mochimon/core'
+import { Emote } from '../fx/emote'
 import { createFaceMaterials, type FaceMaterials } from '../material/face'
 import { createPlushMaterials, type PlushMaterials } from '../material/plush'
 import { projectedCap } from './face'
@@ -13,6 +14,7 @@ import {
   finShape,
   fishTailShape,
   hangingCapsule,
+  heartShape,
   petalShape,
   slab,
   spadeShape,
@@ -33,7 +35,9 @@ interface PartOpts {
   tip?: (local: THREE.Vector3) => number
 }
 
-export type PoseName = 'stand' | 'sit' | 'lie' | 'curl'
+type BasePose = 'stand' | 'sit' | 'lie' | 'curl'
+/** play = ก้มเล่นลูกบอล, love = นั่งกอดหัวใจ (อ้อน) */
+export type PoseName = BasePose | 'play' | 'love'
 
 export interface LegPose {
   x: number
@@ -86,7 +90,11 @@ export interface Rig {
   face: FaceMaterials
   /** ค่าตาเปิดพื้นฐานของชนิดตา (ตาปรือ < 1) */
   eyeOpenBase: number
+  /** ไอคอนอารมณ์ลอยข้างหัว */
+  emote: Emote
   poses: Record<PoseName, PoseDef>
+  /** ของประกอบท่า: โผล่มาเมื่อเข้าท่านั้น */
+  props: { ball: THREE.Object3D; heart: THREE.Object3D }
   canFly: boolean
 }
 
@@ -108,7 +116,7 @@ export interface BuiltCreature {
   dispose(): void
 }
 
-const SHELLS = { off: 0, medium: 6, high: 12 }
+const SHELLS = { off: 0, medium: 6, high: 16 }
 
 /** smoothstep ที่รองรับขอบกลับด้าน (a > b) */
 const smooth = (a: number, b: number, x: number) => {
@@ -199,11 +207,15 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
     eyes: [],
     face: createFaceMaterials(p.colors.eye.hex, p.parts.eyes.shape),
     eyeOpenBase: p.parts.eyes.shape === 'sleepy' ? 0.6 : 1,
+    emote: new Emote(R * 0.62),
     poses: {} as Record<PoseName, PoseDef>,
+    props: { ball: group(), heart: group() },
     canFly: p.habitat === 'sky',
   }
   root.add(rig.body)
   rig.body.add(rig.head)
+  rig.emote.sprite.position.set(R * 0.95, R * 0.95, R * 0.2)
+  rig.head.add(rig.emote.sprite)
 
   const mask = p.parts.mask.shape
   const socks = p.parts.socks.shape
@@ -365,7 +377,7 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
 
   // ปอยขนที่แก้ม (เฉพาะสายพันธุ์ขนฟู หน้าสั้น)
   if (furry && !longFace && headShape !== 'fish' && headShape !== 'bird') {
-    const tuftLen = R * lerp(0.2, 0.42, furGene)
+    const tuftLen = R * lerp(0.24, 0.52, furGene)
     for (const [dy, angle, len] of [
       [-0.16, -0.25, 1],
       [-0.34, -0.6, 0.85],
@@ -569,7 +581,7 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
     case 'curved':
       // เขาโค้งเรียบชี้ขึ้น-เข้าหากันเล็กน้อย
       hornPair(0.28, 0.84, 0.12, [-0.25, 0, -0.5], () => {
-        const h = horn(0.17, 0.6, 0.5)
+        const h = horn(0.2, 0.62, 0.5)
         h.rotation.y = Math.PI / 2
         return h
       })
@@ -950,11 +962,12 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
     rx: rxAngle,
     ry: ryAngle,
   })
+  let basePoses: Record<BasePose, PoseDef>
   if (quad) {
     const pitch = -0.82
     const sitY = Math.hypot(ry * Math.cos(pitch), rz * Math.sin(pitch)) * 0.98
     const low = s.legR * 1.15
-    rig.poses = {
+    basePoses = {
       stand: {
         bodyY: standY,
         bodyZ: 0,
@@ -1022,7 +1035,7 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
       legAt(-rx * 0.52, legTop - squat, rz * 0.1, -1.1, -0.2),
     ]
     const stand = { bodyY: standY, bodyZ: 0, bodyPitch: 0, ...zeroHead, legs }
-    rig.poses = {
+    basePoses = {
       stand,
       sit: stand,
       lie: { ...stand, bodyY: standY - squat, headDrop: R * 0.1, headPitch: 0.1, legs: sitLegs },
@@ -1037,12 +1050,63 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
     }
   } else {
     const swim = { bodyY: standY, bodyZ: 0, bodyPitch: 0, ...zeroHead, legs: [] }
-    rig.poses = {
+    basePoses = {
       stand: swim,
       sit: swim,
       lie: { ...swim, bodyY: ry + 0.05 },
       curl: { ...swim, bodyY: ry + 0.05 },
     }
+  }
+
+  // ท่าเล่น (ก้มหน้า ก้นโด่ง หางชี้) และท่าอ้อน (นั่งกอดหัวใจ) ต่อยอดจากท่าพื้นฐาน
+  const hindStand = basePoses.stand.legs.slice(2)
+  const hindSit = basePoses.sit.legs.slice(2)
+  const chestY = basePoses.sit.bodyY + ry * 0.2
+  rig.poses = {
+    ...basePoses,
+    play: quad
+      ? {
+          ...basePoses.stand,
+          bodyY: standY - legTop * 0.22,
+          bodyPitch: 0.36,
+          headPitch: -0.12,
+          tailPitch: 0.55,
+          legs: [
+            legAt(lx, legTop * 0.6, lz + rz * 0.3, -0.95, 0.25),
+            legAt(-lx, legTop * 0.6, lz + rz * 0.3, -0.95, -0.25),
+            ...hindStand,
+          ],
+        }
+      : { ...basePoses.stand, headPitch: 0.12 },
+    love: quad
+      ? {
+          ...basePoses.sit,
+          headRoll: 0.14,
+          legs: [
+            legAt(rx * 0.8, chestY, rz * 0.12, -1.25, -0.6),
+            legAt(-rx * 0.8, chestY, rz * 0.12, -1.25, 0.6),
+            ...hindSit,
+          ],
+        }
+      : { ...basePoses.stand, headRoll: 0.14 },
+  }
+  // ของประกอบ: ลูกบอล (วางบนพื้นหน้าตัว) และหัวใจ (กอดไว้ที่อก)
+  const ballR = 0.1
+  const ball3d = mesh(ball(ballR), tint('#7fb2ff'), { tip: (l) => (l.y / ballR + 1) / 2 })
+  rig.props.ball.add(ball3d)
+  rig.props.ball.position.set(0, ballR, (quad ? rz : rz * 0.6) + R * 1.15)
+  const heartSize = Math.min(rx, R * 0.6) * 1.15
+  rig.props.heart.add(
+    mesh(slab(heartShape(), heartSize, heartSize * 0.42), tint('#ff7d9c'), { tip: () => 0.3 }),
+  )
+  rig.props.heart.position.set(
+    0,
+    quad ? chestY - ry * 0.05 : standY + ry * 0.1,
+    (quad ? rz * 0.2 : rz) + legTop * (quad ? 1.05 : 0.5),
+  )
+  for (const prop of Object.values(rig.props)) {
+    prop.visible = false
+    root.add(prop)
   }
 
   // ═════════ อบข้อมูลต่อ vertex: หลอมรอยต่อ + สี + ขน ═════════
@@ -1153,6 +1217,7 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
       for (const geo of geometries) geo.dispose()
       for (const m of mats.all) m.dispose()
       for (const m of extraMaterials) m.dispose()
+      rig.emote.dispose()
     },
   }
 }

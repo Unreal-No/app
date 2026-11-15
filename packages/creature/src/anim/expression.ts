@@ -1,4 +1,5 @@
 import type { EmotionLabel } from '@mochimon/core'
+import type { EmoteKind } from '../fx/emote'
 
 /** พารามิเตอร์ของใบหน้า — ตา/ปากเป็น shader จึงเปลี่ยนสีหน้าได้โดยไม่ต้องสร้าง mesh ใหม่ */
 export interface FacePose {
@@ -40,4 +41,20 @@ export const FACES: Record<EmotionLabel, FacePose> = {
   grumpy: face({ open: 0.72, slant: 0.95, mouth: 3, blush: 0.25 }),
   sad: face({ open: 0.78, slant: -0.85, mouth: 3, blush: 0.3 }),
   scared: face({ wide: 1.14, slant: -0.25, mouth: 2, mouthOpen: 1, blush: 0.2 }),
+}
+
+/** ไอคอนอารมณ์ที่ลอยข้างหัวของแต่ละอารมณ์ (null = ไม่มี) */
+export const EMOTES: Record<EmotionLabel, EmoteKind | null> = {
+  joyful: 'spark',
+  excited: 'spark',
+  content: null,
+  curious: 'question',
+  shy: 'heart',
+  sleepy: 'zzz',
+  hungry: null,
+  lonely: null,
+  bored: null,
+  grumpy: 'anger',
+  sad: 'drop',
+  scared: 'exclaim',
 }

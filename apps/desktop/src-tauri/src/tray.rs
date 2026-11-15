@@ -1,5 +1,5 @@
 use tauri::{
-    menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder},
+    menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
     tray::TrayIconBuilder,
     App, Emitter, Manager,
 };
@@ -15,13 +15,24 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let visible = CheckMenuItemBuilder::with_id("visible", "แสดงสัตว์เลี้ยง")
         .checked(true)
         .build(app)?;
-    let reroll = MenuItemBuilder::with_id("reroll", "สุ่มสัตว์ตัวใหม่ (ทดลอง)").build(app)?;
+    let reroll = MenuItemBuilder::with_id("reroll", "รับไข่ใบใหม่ (ทดลอง)").build(app)?;
+
+    // โหมดฉากหลัง: กลมกลืน (ไม่มีฉาก) หรือมุมพักผ่อนพร้อมไดโอรามา
+    let habitat = SubmenuBuilder::new(app, "ฉากมุมพักผ่อน")
+        .text("habitat-none", "ไม่มีฉาก (โหมดกลมกลืน)")
+        .separator()
+        .text("habitat-meadow", "ทุ่งหญ้า")
+        .text("habitat-cloud", "เกาะเมฆ")
+        .text("habitat-underwater", "ใต้น้ำ")
+        .text("habitat-snow", "หิมะ")
+        .build()?;
     let quit = MenuItemBuilder::with_id("quit", "ออกจาก Mochimon").build(app)?;
 
     let menu = MenuBuilder::new(app)
         .items(&[&call, &feed, &play])
         .separator()
         .items(&[&quiet, &visible])
+        .item(&habitat)
         .separator()
         .item(&reroll)
         .separator()
@@ -51,6 +62,9 @@ pub fn build(app: &App) -> tauri::Result<()> {
             }
         }
         id @ ("call" | "feed" | "play" | "reroll") => {
+            let _ = app.emit("tray", id);
+        }
+        id if id.starts_with("habitat-") => {
             let _ = app.emit("tray", id);
         }
         _ => {}

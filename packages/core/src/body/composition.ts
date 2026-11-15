@@ -1,8 +1,8 @@
 import type { Phenotype } from '../genetics/types'
 import { clamp, lerp } from '../rng'
 
-export type LifeStage = 'baby' | 'child' | 'teen' | 'adult' | 'elder'
-export const LIFE_STAGES: LifeStage[] = ['baby', 'child', 'teen', 'adult', 'elder']
+export type LifeStage = 'egg' | 'baby' | 'child' | 'teen' | 'adult' | 'elder'
+export const LIFE_STAGES: LifeStage[] = ['egg', 'baby', 'child', 'teen', 'adult', 'elder']
 
 /** สภาพร่างกายที่เกิดจากการเลี้ยงดู (ไม่ใช่ยีนส์) */
 export interface Nurture {
@@ -38,9 +38,10 @@ export interface BodySpec {
 }
 
 const STAGE: Record<LifeStage, { scale: number; head: number; leg: number; extra: number }> = {
-  baby: { scale: 0.5, head: 1.3, leg: 0.6, extra: 0.55 },
-  child: { scale: 0.68, head: 1.18, leg: 0.8, extra: 0.75 },
-  teen: { scale: 0.86, head: 1.06, leg: 0.95, extra: 0.92 },
+  egg: { scale: 0.5, head: 1.3, leg: 0.6, extra: 0.3 },
+  baby: { scale: 0.5, head: 1.3, leg: 0.6, extra: 0.3 },
+  child: { scale: 0.68, head: 1.18, leg: 0.8, extra: 0.6 },
+  teen: { scale: 0.86, head: 1.06, leg: 0.95, extra: 0.85 },
   adult: { scale: 1, head: 1, leg: 1, extra: 1 },
   elder: { scale: 0.97, head: 1, leg: 0.95, extra: 1 },
 }

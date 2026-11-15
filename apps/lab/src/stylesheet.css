@@ -1,0 +1,138 @@
+:root {
+  font-family: 'Leelawadee UI', 'Noto Sans Thai', 'Sarabun', 'Thonburi', system-ui, sans-serif;
+  color: #4a3b62;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: linear-gradient(135deg, #cdbfe6, #e8d9ee 45%, #d5c6ea);
+}
+#gl {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 1536px;
+  height: 1024px;
+  pointer-events: none;
+  z-index: 1;
+}
+#board {
+  position: relative;
+  width: 1536px;
+  height: 1024px;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  grid-template-columns: repeat(24, 1fr);
+  grid-template-rows: repeat(20, 1fr);
+}
+h1 {
+  margin: 0;
+  font-size: 44px;
+  color: #6c4fc0;
+  line-height: 1;
+}
+h1 span {
+  display: block;
+  font-size: 16px;
+  color: #7b6aa8;
+  font-weight: 600;
+  margin-top: 4px;
+}
+h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  background: #fff;
+  align-self: flex-start;
+  padding: 3px 12px;
+  border-radius: 12px;
+}
+#hero-panel {
+  grid-column: 1 / 10;
+  grid-row: 1 / 13;
+  display: flex;
+  flex-direction: column;
+}
+#hero-panel p {
+  margin: 0;
+  text-align: center;
+  color: #6b5a8f;
+}
+#hero {
+  flex: 1;
+}
+.panel {
+  background: rgba(255, 255, 255, 0.34);
+  border-radius: 18px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.cells {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+  min-height: 0;
+}
+.cell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  text-align: center;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.cell .slot {
+  flex: 1;
+  min-height: 0;
+}
+#p-base {
+  grid-column: 10 / 19;
+  grid-row: 1 / 8;
+}
+#p-colors {
+  grid-column: 19 / 25;
+  grid-row: 1 / 8;
+}
+#p-faces {
+  grid-column: 10 / 25;
+  grid-row: 8 / 13;
+}
+#p-stages {
+  grid-column: 1 / 13;
+  grid-row: 13 / 17;
+}
+#p-parts {
+  grid-column: 13 / 25;
+  grid-row: 13 / 17;
+}
+#p-habitats {
+  grid-column: 1 / 12;
+  grid-row: 17 / 21;
+}
+#p-actions {
+  grid-column: 12 / 25;
+  grid-row: 17 / 21;
+}
+#base,
+#stages,
+#parts,
+#actions {
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+#faces {
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+#habitats {
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+#colors {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}

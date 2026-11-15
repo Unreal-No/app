@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { EmotionLabel } from '@mochimon/core'
 import type { LegPose, PoseDef, PoseName, Rig } from '../build/creature'
-import { FACES, type FacePose } from './expression'
+import { EMOTES, FACES, type FacePose } from './expression'
 
 export interface AnimInput {
   /** ความเร็วการเดิน 0..1 (0 = ยืนนิ่ง) */
@@ -16,6 +16,8 @@ export interface AnimInput {
   held: boolean
   /** ท่าทาง: 'auto' = นั่งตอนพัก ยืนตอนเดิน นอนขดตอนหลับ */
   pose: PoseName | 'auto'
+  /** แสดงไอคอนอารมณ์ลอยข้างหัว */
+  emotes: boolean
 }
 
 export const defaultAnimInput = (): AnimInput => ({
@@ -27,6 +29,7 @@ export const defaultAnimInput = (): AnimInput => ({
   flying: false,
   held: false,
   pose: 'auto',
+  emotes: true,
 })
 
 interface Mood {
@@ -100,6 +103,8 @@ export class Animator {
   private twitchIn = 2 + Math.random() * 4
   private twitch = 0
   private lookPitch = 0
+  private ballAmt = 0
+  private heartAmt = 0
   private mood: Mood = { ...MOODS.content }
   private pose: PoseDef
   private face: FacePose = { ...FACES.content }
@@ -140,7 +145,8 @@ export class Animator {
     const floating = rig.posture === 'float'
 
     // ── ผสมท่าทาง ──
-    const goal = rig.poses[this.targetPose(input)]
+    const poseName = this.targetPose(input)
+    const goal = rig.poses[poseName]
     const pose = this.pose
     for (const key of POSE_KEYS) pose[key] = damp(pose[key], goal[key], 7, dt)
     pose.legs.forEach((leg, i) => {
@@ -253,6 +259,21 @@ export class Animator {
     ;(mouthUniforms.uShape as THREE.IUniform<number>).value = face.mouth
     ;(mouthUniforms.uOpen as THREE.IUniform<number>).value = face.mouthOpen
     ;(rig.face.blush.uniforms.uStrength as THREE.IUniform<number>).value = face.blush
+
+    // ── ของประกอบท่า: ลูกบอลเด้ง, หัวใจเต้นตุบๆ ──
+    this.ballAmt = damp(this.ballAmt, poseName === 'play' ? 1 : 0, 8, dt)
+    this.heartAmt = damp(this.heartAmt, poseName === 'love' ? 1 : 0, 8, dt)
+    const { ball, heart } = rig.props
+    ball.visible = this.ballAmt > 0.02
+    ball.scale.setScalar(this.ballAmt)
+    ball.position.y = 0.1 + Math.abs(Math.sin(t * 5)) * 0.12 * this.ballAmt
+    ball.rotation.x = t * 4
+    heart.visible = this.heartAmt > 0.02
+    heart.scale.setScalar(this.heartAmt * (1 + 0.07 * Math.sin(t * 6)))
+
+    // ── ไอคอนอารมณ์ ──
+    rig.emote.set(input.asleep ? 'zzz' : input.emotes ? EMOTES[input.emotion] : null)
+    rig.emote.update(dt, t)
   }
 }
 

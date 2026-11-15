@@ -26,7 +26,7 @@ export function createMochi(db: GeneDb = geneDb): Genome {
     'ear.type': both(P('ear.cat')),
     'horn.type': [P('horn.curved'), P('horn.none')],
     'wing.type': [P('wing.feather'), P('wing.feather')],
-    'tail.type': [P('tail.fluffy'), P('tail.dragon')],
+    'tail.type': [P('tail.fluffy'), P('tail.nub')],
     'limb.type': both(P('limb.quad')),
     'eye.type': [P('eye.round'), P('eye.sparkle')],
     'pattern.type': [P('pattern.plain'), P('pattern.gradient')],
@@ -49,10 +49,10 @@ export function createMochi(db: GeneDb = geneDb): Genome {
     'glow.level': both(N(0.9)),
     'color.base': both(C(0.975, 0.012, 290)),
     'color.belly': both(C(0.985, 0.008, 90)),
-    'color.mark': both(C(0.74, 0.1, 283)),
-    'color.pattern': both(C(0.74, 0.1, 283)),
+    'color.mark': both(C(0.7, 0.12, 281)),
+    'color.pattern': both(C(0.7, 0.12, 281)),
     'color.eye': both(C(0.56, 0.11, 55)),
-    'color.accent': both(C(0.86, 0.09, 232)),
+    'color.accent': both(C(0.82, 0.11, 228)),
     'color.inner': both(C(0.84, 0.085, 8)),
   }
   for (const [locus, gene] of Object.entries(visible)) {

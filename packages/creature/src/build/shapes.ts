@@ -144,6 +144,15 @@ export function fishTailShape(): THREE.Shape {
   return s
 }
 
+/** หัวใจ: กว้าง ~1 หน่วย จุดกึ่งกลางอยู่ที่จุดกำเนิด */
+export function heartShape(): THREE.Shape {
+  const s = new THREE.Shape()
+  s.moveTo(0, -0.48)
+  s.bezierCurveTo(-0.7, -0.05, -0.55, 0.55, 0, 0.22)
+  s.bezierCurveTo(0.55, 0.55, 0.7, -0.05, 0, -0.48)
+  return s
+}
+
 export function spadeShape(): THREE.Shape {
   const s = new THREE.Shape()
   s.moveTo(0, 0)

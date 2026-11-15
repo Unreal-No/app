@@ -81,7 +81,7 @@ describe('composeBody', () => {
   })
 
   it('โตตามวัย: ตัวใหญ่ขึ้น แต่เบบี้หัวโตกว่าตามสัดส่วน', () => {
-    const heights = LIFE_STAGES.slice(0, 4).map((stage) =>
+    const heights = LIFE_STAGES.slice(1, 5).map((stage) =>
       approxHeight(composeBody(pheno, { ...DEFAULT_NURTURE, stage })),
     )
     expect([...heights].sort((a, b) => a - b)).toEqual(heights)
@@ -210,6 +210,23 @@ describe('behavior', () => {
 
 describe('petSim', () => {
   const world = { hour: 14, cursorNear: false, userActive: true, quiet: false }
+
+  it('ไข่: ไม่มี needs ลดลง ฟักเมื่อครบเวลา และการลูบช่วยให้ฟักเร็วขึ้น', () => {
+    const rng = new Rng('egg')
+    const egg = createPet('ไข่', createFounder('cat', rng), { ...DEFAULT_NURTURE, stage: 'egg' })
+    let pet = egg
+    for (let i = 0; i < 30; i++) pet = tickPet(pet, 10, world, rng)
+    expect(pet.nurture.stage).toBe('egg')
+    expect(pet.needs).toEqual(egg.needs)
+    expect(pet.incubation).toBeCloseTo(0.5)
+    // ผู้ใช้ไม่อยู่ → ไม่คืบหน้า
+    expect(tickPet(pet, 1000, { ...world, userActive: false }, rng).incubation).toBeCloseTo(0.5)
+    expect(carePet(pet, 'pet').incubation).toBeGreaterThan(pet.incubation!)
+    expect(carePet(pet, 'feed')).toBe(pet)
+    for (let i = 0; i < 31; i++) pet = tickPet(pet, 10, world, rng)
+    expect(pet.nurture.stage).toBe('baby')
+    expect(viewPet(pet).emotionLabel).toBe('excited')
+  })
 
   it('จำลองเวลา 1 วัน: ค่าทุกอย่างอยู่ในช่วง และมีพฤติกรรมหลากหลาย', () => {
     const rng = new Rng('sim')

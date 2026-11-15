@@ -32,6 +32,8 @@ export interface PetState {
   behavior: Behavior
   /** เวลาที่เหลือ (วินาที) ก่อนตัดสินใจพฤติกรรมใหม่ */
   behaviorTimer: number
+  /** ความคืบหน้าการฟัก 0..1 (ใช้เฉพาะช่วงวัย 'egg') */
+  incubation?: number
 }
 
 export interface WorldContext {
@@ -58,7 +60,11 @@ export function createPet(
   }
 }
 
+/** เวลาฟักไข่พื้นฐาน (วินาทีที่ผู้ใช้อยู่หน้าจอ) */
+export const INCUBATION_SECONDS = 600
+
 const PLASTICITY: Record<Nurture['stage'], number> = {
+  egg: 0,
   baby: 3,
   child: 2.2,
   teen: 1.5,
@@ -111,6 +117,8 @@ export function tickPet(
   rng: Rng,
   db: GeneDb = geneDb,
 ): PetState {
+  if (pet.nurture.stage === 'egg')
+    return incubate(pet, world.userActive ? dtSec / INCUBATION_SECONDS : 0)
   const phenotype = express(pet.genome, db)
   const personality = derivePersonality(phenotype.temperament, pet.experience)
   const asleep = pet.behavior === 'sleep'
@@ -153,8 +161,28 @@ export function tickPet(
   return { ...pet, needs, emotion, behavior, behaviorTimer }
 }
 
+/**
+ * เพิ่มความคืบหน้าการฟัก — ครบ 1 แล้วฟักเป็นเบบี้ทันที
+ * (เวลาโฟกัสงาน/ความอบอุ่นจะเรียกฟังก์ชันนี้เพื่อเร่งการฟักในอนาคต)
+ */
+export function incubate(pet: PetState, amount: number): PetState {
+  if (pet.nurture.stage !== 'egg') return pet
+  const incubation = Math.min(1, (pet.incubation ?? 0) + Math.max(0, amount))
+  if (incubation < 1) return { ...pet, incubation }
+  return {
+    ...pet,
+    incubation: 1,
+    nurture: { ...pet.nurture, stage: 'baby' },
+    needs: fullNeeds(),
+    emotion: { valence: 0.7, arousal: 0.7, mood: 0.4 },
+    behavior: 'idle',
+    behaviorTimer: 4,
+  }
+}
+
 /** เหตุการณ์จากผู้ใช้/โลก → กระทบอารมณ์และหล่อหลอมนิสัย */
 export function petEvent(pet: PetState, event: EmotionEvent, db: GeneDb = geneDb): PetState {
+  if (pet.nurture.stage === 'egg') return pet
   const { personality } = viewPet(pet, db)
   const wakes = event === 'pickedUp' || event === 'startled' || event === 'dropped'
   return {
@@ -177,6 +205,8 @@ const CARE_EVENT: Record<CareAction, EmotionEvent | null> = {
 
 /** การดูแล: ปรับ needs + รูปร่าง แล้วส่งเหตุการณ์อารมณ์ที่เกี่ยวข้อง */
 export function carePet(pet: PetState, action: CareAction, db: GeneDb = geneDb): PetState {
+  // ลูบไข่ = ให้ความอบอุ่น ช่วยให้ฟักเร็วขึ้นเล็กน้อย
+  if (pet.nurture.stage === 'egg') return action === 'pet' ? incubate(pet, 0.02) : pet
   const metabolism = express(pet.genome, db).nums['meta.metabolism']
   const { needs, nurture } = applyCare(pet.needs, pet.nurture, action, metabolism)
   const next = { ...pet, needs, nurture }

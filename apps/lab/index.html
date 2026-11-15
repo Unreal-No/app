@@ -11,7 +11,10 @@
     <div id="app">
       <header>
         <h1>Mochimon <span>Creature Lab</span></h1>
-        <p>ห้องทดลองยีนส์ — สุ่ม ผสมพันธุ์ กลายพันธุ์ และอัญเชิญสัตว์จากไฟล์</p>
+        <p>
+          ห้องทดลองยีนส์ — สุ่ม ผสมพันธุ์ กลายพันธุ์ และอัญเชิญสัตว์จากไฟล์ ·
+          <a href="./stylesheet.html">ดูหน้า Style Sheet</a>
+        </p>
       </header>
 
       <section class="card">
@@ -36,6 +39,7 @@
             <label
               >ช่วงวัย
               <select id="stage-select">
+                <option value="egg">ไข่</option>
                 <option value="baby">เบบี้</option>
                 <option value="child">เด็ก</option>
                 <option value="teen">วัยรุ่น</option>
@@ -61,6 +65,8 @@
                 <option value="stand">ยืน</option>
                 <option value="lie">หมอบ</option>
                 <option value="curl">นอนขด</option>
+                <option value="play">เล่นลูกบอล</option>
+                <option value="love">อ้อน (กอดหัวใจ)</option>
               </select>
             </label>
             <label
@@ -108,6 +114,11 @@
           <button id="breed" class="primary">ผสมพันธุ์ → ไข่ 6 ฟอง</button>
         </div>
         <div id="offspring" class="row"></div>
+      </section>
+
+      <section class="card">
+        <h2>ฉากไดโอรามา <small>ใช้กับโหมดมุมพักผ่อน/ฟาร์ม</small></h2>
+        <div id="habitats" class="row"></div>
       </section>
 
       <section class="card">

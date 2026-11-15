@@ -72,6 +72,7 @@ uniform float uGlow;
 uniform float uUsePaint;
 uniform float uFurDensity;
 uniform float uOpacity;
+uniform float uSheer;
 varying vec3 vNormal;
 varying vec3 vPat;
 varying vec4 vPaint;
@@ -93,8 +94,10 @@ void main() {
   float nz = vnoise(fp) * 0.62 + vnoise(fp * 2.3 + 11.0) * 0.38;
   float edge = vShell * 0.92;
   float cover = smoothstep(edge - 0.1, edge + 0.1, nz * 1.12);
-  if (cover < 0.05) discard;
-  alpha = cover;
+  // ตัดแบบ dither (ไม่เขียนค่าโปร่งใสครึ่งๆ ลงจอ): ขอบขนนุ่มโดยที่ทุกพิกเซลยังทึบเต็ม
+  // — ค่า alpha ระหว่าง 0..1 บนหน้าต่างโปร่งใสจะกลายเป็นเส้นสว่างเกินจริง
+  float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  if (cover < 0.25 + 0.5 * dither) discard;
 #endif
 
   vec3 n = normalize(vNormal);
@@ -125,7 +128,7 @@ void main() {
   float wrap = dot(n, lightDir) * 0.5 + 0.5;
   float ramp = smoothstep(0.28, 0.82, wrap);
   // เงาอมม่วง-ฟ้า: สีขาวก็ยังเห็นรูปทรง
-  vec3 shade = col * vec3(0.66, 0.66, 0.9);
+  vec3 shade = col * vec3(0.62, 0.62, 0.88);
   vec3 lit = mix(shade, col, ramp);
   // ซอกมุม/ใต้คาง (AO ที่อบไว้) + แสงจากฟ้า-พื้น
   lit *= mix(vec3(0.6, 0.58, 0.8), vec3(1.0), vPaint.w);
@@ -137,7 +140,8 @@ void main() {
 
 #ifdef SHELL
   // โคนขนมืด ปลายขนสว่าง
-  lit *= mix(0.93, 1.03, vShell);
+  // ชั้นขนสีเดียวกับผิว: ด้านในดูเรียบนุ่ม ความฟูไปปรากฏที่ขอบตัว
+  lit *= mix(0.99, 1.02, vShell);
 #endif
 
   // ── ชิ้นส่วนเรืองแสง (เขา/ปีก): สว่างจากข้างใน ขอบเรือง ──
@@ -149,6 +153,10 @@ void main() {
     lit += uPatternColor * (0.16 + 0.12 * pulse) + rim * (0.3 + 0.2 * pulse);
   }
 
+  // กำมะหยี่: ความสว่างไหวเบาๆ ความถี่ต่ำ ให้ผิวดูเป็นขนนุ่ม ไม่แบนเรียบ
+  lit *= 0.965 + 0.07 * vnoise(vPat * 7.0 + 3.1) * uUsePaint;
+  // ชิ้นโปร่งเรืองแสง: กลางชิ้นโปร่ง ขอบทึบ
+  alpha *= mix(1.0, 0.55 + 0.45 * rim, uSheer);
   gl_FragColor = vec4(lit, alpha);
   #include <colorspace_fragment>
 }
@@ -216,6 +224,8 @@ export function createPlushMaterials(p: Phenotype, opts: PlushOptions): PlushMat
     paint: boolean
     tip?: THREE.Color
     glow?: number
+    /** ความโปร่ง 0..1 (ใช้กับเขา/ปีกเรืองแสง) */
+    sheer?: number
     side?: THREE.Side
     shell?: boolean
   }): THREE.ShaderMaterial => {
@@ -224,7 +234,7 @@ export function createPlushMaterials(p: Phenotype, opts: PlushOptions): PlushMat
       fragmentShader: FRAGMENT,
       side: cfg.side ?? THREE.FrontSide,
       defines: cfg.shell ? { SHELL: '' } : {},
-      alphaToCoverage: !!cfg.shell,
+      transparent: (cfg.sheer ?? 0) > 0.05,
       uniforms: {
         ...shared,
         uBase: { value: cfg.base },
@@ -234,6 +244,7 @@ export function createPlushMaterials(p: Phenotype, opts: PlushOptions): PlushMat
         uUsePaint: { value: cfg.paint ? 1 : 0 },
         uGlow: { value: cfg.glow ?? 0 },
         uOpacity: { value: 1 },
+        uSheer: { value: cfg.sheer ?? 0 },
       },
     })
     all.push(material)
@@ -255,12 +266,19 @@ export function createPlushMaterials(p: Phenotype, opts: PlushOptions): PlushMat
   return {
     skin,
     shell,
-    accent: make({ base: accent, tip: accentTip, paint: false, glow: glow * 0.85 }),
+    accent: make({
+      base: accent,
+      tip: accentTip,
+      paint: false,
+      glow: glow * 0.85,
+      sheer: glow * 0.32,
+    }),
     membrane: make({
       base: accent,
       tip: accentTip,
       paint: false,
       glow: glow * 0.8,
+      sheer: glow * 0.75,
       side: THREE.DoubleSide,
     }),
     inner: make({ base: color(p.colors.inner.hex), paint: false }),

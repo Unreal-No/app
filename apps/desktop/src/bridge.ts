@@ -21,7 +21,18 @@ export interface HitShape {
   r: number
 }
 
-export type TrayAction = 'call' | 'feed' | 'play' | 'quiet-on' | 'quiet-off' | 'reroll'
+export type TrayAction =
+  | 'call'
+  | 'feed'
+  | 'play'
+  | 'quiet-on'
+  | 'quiet-off'
+  | 'reroll'
+  | 'habitat-none'
+  | 'habitat-meadow'
+  | 'habitat-cloud'
+  | 'habitat-underwater'
+  | 'habitat-snow'
 
 const MOCK_TASKBAR = 48
 
@@ -45,5 +56,10 @@ export function onCursor(callback: (x: number, y: number) => void): void {
 }
 
 export function onTray(callback: (action: TrayAction) => void): void {
-  if (isTauri) void listen<TrayAction>('tray', (e) => callback(e.payload))
+  if (isTauri) {
+    void listen<TrayAction>('tray', (e) => callback(e.payload))
+  } else {
+    // ในเบราว์เซอร์ไม่มี tray: จำลองได้ด้วย window.dispatchEvent(new CustomEvent('mochimon-tray', { detail: 'feed' }))
+    addEventListener('mochimon-tray', (e) => callback((e as CustomEvent<TrayAction>).detail))
+  }
 }

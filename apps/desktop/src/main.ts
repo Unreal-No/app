@@ -11,7 +11,8 @@ import {
 } from '@mochimon/core'
 import { createBlobShadow, Creature } from '@mochimon/creature'
 import { getLayout, onCursor, onTray, setHitShapes, type DesktopLayout } from './bridge'
-import { firstPet, loadPet, newPet, savePet } from './save'
+import { createHabitat, HABITAT_KINDS, type Habitat, type HabitatKind } from '@mochimon/habitat'
+import { firstPet, loadHabitat, loadPet, newPet, saveHabitat, savePet } from './save'
 
 /** ขนาดบนจอ: 1 หน่วยโมเดล = กี่ CSS px */
 const PX_PER_UNIT = 130
@@ -41,6 +42,42 @@ function applyLayout(next: DesktopLayout): void {
 /** ความสูงของพื้น (ขอบบน Taskbar) ในพิกัดโลก (y ชี้ขึ้น) */
 const groundLevel = () => layout.height - layout.groundY
 
+// ───────── โหมดมุมพักผ่อน: ไดโอรามาเล็กที่มุมขวาล่าง ─────────
+const HABITAT_PX = 110
+class HabitatActor {
+  readonly holder = new THREE.Group()
+  constructor(readonly habitat: Habitat) {
+    this.holder.add(habitat.root)
+    this.holder.rotation.set(0.14, 0.3, 0)
+    this.holder.scale.setScalar(HABITAT_PX)
+    scene.add(this.holder)
+  }
+  get x(): number {
+    return layout.width - HABITAT_PX * 1.5
+  }
+  /** ความสูงของพื้นที่สัตว์ยืนได้ ณ ตำแหน่ง x */
+  floorAt(x: number): number {
+    const onTop = Math.abs(x - this.x) < HABITAT_PX * 0.62
+    return groundLevel() + (onTop ? this.habitat.surfaceY * HABITAT_PX : 0)
+  }
+  update(dt: number): void {
+    // อยู่หลังสัตว์เล็กน้อยในแนวลึก
+    this.holder.position.set(this.x, groundLevel(), -260)
+    this.habitat.update(dt)
+  }
+  dispose(): void {
+    this.holder.removeFromParent()
+    this.habitat.dispose()
+  }
+}
+let habitatActor: HabitatActor | null = null
+function setHabitat(kind: HabitatKind | null): void {
+  habitatActor?.dispose()
+  habitatActor = kind ? new HabitatActor(createHabitat(kind)) : null
+  saveHabitat(kind)
+}
+const floorAt = (x: number) => habitatActor?.floorAt(x) ?? groundLevel()
+
 // ───────── ตัวสัตว์บนจอ ─────────
 class PetActor {
   state: PetState
@@ -56,6 +93,8 @@ class PetActor {
   private targetX: number | null = null
   private squash = 0
   held = false
+  /** เวลาที่เหลือของท่าเล่นลูกบอล (วินาที) */
+  playTimer = 0
   private grabOffset = { x: 0, y: 0 }
   private fallFrom = 0
 
@@ -138,6 +177,11 @@ class PetActor {
       case 'hide':
         this.targetX = cursor.x > layout.width / 2 ? min : max
         break
+      case 'sleep':
+      case 'sit':
+        // มีฉากมุมพักผ่อน → เดินกลับไปพักบนฉาก
+        this.targetX = habitatActor ? habitatActor.x : null
+        break
       default:
         this.targetX = null
     }
@@ -146,12 +190,13 @@ class PetActor {
   update(dt: number): void {
     const behavior = this.state.behavior
     const asleep = behavior === 'sleep'
-    const ground = groundLevel()
+    const egg = this.creature.isEgg
+    const ground = floorAt(this.x)
     let moving = false
 
     if (this.held) {
       this.targetX = null
-    } else if (this.y > ground + 0.5 || this.vy !== 0) {
+    } else if (this.y > ground + 40 || this.vy !== 0) {
       // ร่วงลงพื้น
       this.vy -= GRAVITY * dt
       this.y += this.vy * dt
@@ -165,9 +210,11 @@ class PetActor {
         }
       }
     } else {
-      this.y = ground
-      this.pickTarget(behavior)
-      if (this.targetX !== null && !asleep) {
+      // ขึ้น/ลงแท่นฉากแบบนุ่มๆ
+      this.y = THREE.MathUtils.damp(this.y, ground, 14, dt)
+      if (!egg) this.pickTarget(behavior)
+      else this.targetX = null
+      if (this.targetX !== null) {
         const dx = this.targetX - this.x
         if (Math.abs(dx) > 6) {
           const speed =
@@ -194,10 +241,15 @@ class PetActor {
 
     const hit = this.hit
     const look = cursorSeen ? THREE.MathUtils.clamp((cursor.x - hit.x) / 380, -1, 1) : 0
+    this.playTimer = Math.max(0, this.playTimer - dt)
+    this.creature.hatch = this.state.incubation ?? 0
+    const wantsLove = behavior === 'beg' || behavior === 'seekAttention'
     this.creature.update(dt, {
+      pose:
+        moving || this.held ? 'auto' : this.playTimer > 0 ? 'play' : wantsLove ? 'love' : 'auto',
       speed: moving ? (behavior === 'zoomies' ? 1 : 0.6) : 0,
       emotion: this.emotion,
-      asleep: asleep && !this.held,
+      asleep: asleep && !this.held && !moving,
       held: this.held,
       flying: this.held,
       lookX: THREE.MathUtils.clamp(look - this.yaw * 0.6, -1, 1),
@@ -302,7 +354,8 @@ onTray((action) => {
       say(pet, 'อร่อย!')
       break
     case 'play':
-      pet.state = { ...carePet(pet.state, 'play'), behavior: 'zoomies', behaviorTimer: 6 }
+      pet.playTimer = 6
+      pet.state = { ...carePet(pet.state, 'play'), behavior: 'idle', behaviorTimer: 6 }
       say(pet, 'เย้!')
       break
     case 'quiet-on':
@@ -312,8 +365,13 @@ onTray((action) => {
     case 'reroll':
       pet.state = newPet(rng)
       pet.rebuild()
-      say(pet, `สวัสดี! ${pet.state.name}เอง`)
+      say(pet, 'ไข่ใบใหม่! ลูบเพื่อช่วยฟัก')
       break
+    default:
+      if (action.startsWith('habitat-')) {
+        const kind = action.slice('habitat-'.length)
+        setHabitat(HABITAT_KINDS.includes(kind as HabitatKind) ? (kind as HabitatKind) : null)
+      }
   }
   pet.emotion = viewPet(pet.state).emotionLabel
   savePet(pet.state)
@@ -353,7 +411,13 @@ function frame(now: number): void {
       rng,
     )
     pet.emotion = viewPet(pet.state).emotionLabel
-    if (pet.state.nurture !== before) pet.rebuild()
+    if (pet.state.nurture !== before) {
+      pet.rebuild()
+      if (before.stage === 'egg' && pet.state.nurture.stage !== 'egg') {
+        hearts(pet)
+        say(pet, `แง้~ ${pet.state.name}เกิดแล้ว!`)
+      }
+    }
     if (pet.state.behavior !== lastBehavior) {
       lastBehavior = pet.state.behavior
       if (lastBehavior === 'seekAttention' || lastBehavior === 'beg') say(pet)
@@ -390,11 +454,15 @@ function frame(now: number): void {
   bubble.style.left = `${hit.x}px`
   bubble.style.top = `${hit.y - hit.r - 14}px`
 
+  habitatActor?.update(dt)
   renderer.render(scene, camera)
 }
 
 async function start(): Promise<void> {
   applyLayout(await getLayout())
+  // ฉากมุมพักผ่อน: จากที่เซฟไว้ (หรือ ?habitat=... ตอนทดสอบในเบราว์เซอร์)
+  const habitatKind = new URLSearchParams(location.search).get('habitat') ?? loadHabitat()
+  if (HABITAT_KINDS.includes(habitatKind as HabitatKind)) setHabitat(habitatKind as HabitatKind)
   const saved = loadPet()
   pet = new PetActor(saved ?? firstPet())
   if (!saved) say(pet, `สวัสดี! ${pet.state.name}เอง`)

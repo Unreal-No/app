@@ -163,14 +163,18 @@ export function createFaceMaterials(irisHex: string, eyeShape: string): FaceMate
     new THREE.ShaderMaterial({
       vertexShader: VERTEX,
       fragmentShader: EYE_FRAGMENT,
-      alphaToCoverage: true,
+      // ผสมสีแบบโปร่งใสปกติ (ขอบเรียบ และค่า alpha บนจอโปร่งใสถูกต้อง)
+      transparent: true,
+      depthWrite: false,
       ...ON_TOP,
       uniforms: { ...shared, uSide: { value: side } },
     })
   const mouth = new THREE.ShaderMaterial({
     vertexShader: VERTEX,
     fragmentShader: MOUTH_FRAGMENT,
-    alphaToCoverage: true,
+    // ผสมสีแบบโปร่งใสปกติ (ขอบเรียบ และค่า alpha บนจอโปร่งใสถูกต้อง)
+    transparent: true,
+    depthWrite: false,
     ...ON_TOP,
     uniforms: { uShape: { value: 0 }, uOpen: { value: 0 } },
   })

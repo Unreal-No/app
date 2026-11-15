@@ -12,6 +12,7 @@
   "dependencies": {
     "@mochimon/core": "workspace:*",
     "@mochimon/creature": "workspace:*",
+    "@mochimon/habitat": "workspace:*",
     "@tauri-apps/api": "^2.12.4",
     "three": "^0.187.0"
   },
