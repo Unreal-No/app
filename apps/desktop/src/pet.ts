@@ -50,7 +50,11 @@ export class PetActor {
   /** เวลาที่เหลือของท่าเล่นลูกบอล (วินาที) */
   playTimer = 0
   /** เป้าหมายที่สั่งจากภายนอก (เช่น เดินไปหาคู่) — มาก่อนพฤติกรรมปกติ */
-  errand: { x: number; onArrive?: () => void } | null = null
+  errand: { x: number; ttl: number; onArrive?: () => void } | null = null
+  /** แผงดูแลเปิดอยู่ → ยืนรอ ไม่เดินหนี */
+  attending = false
+  /** เวลาที่เหลือของท่าอ้อน/กอดหัวใจ (วินาที) */
+  loveTimer = 0
   private vy = 0
   private airborne = false
   private fallFrom = 0
@@ -163,6 +167,13 @@ export class PetActor {
     this.y = Math.max(groundLevel(), flipY(py) + this.grabOffset.y)
     if (Math.abs(this.x - prevX) > 0.5) this.facing = this.x > prevX ? 1 : -1
   }
+  /** สั่งให้เดินไปที่ x (ยกเลิกเองถ้าไปไม่ถึงในเวลาที่กำหนด) */
+  goTo(x: number, onArrive?: () => void, ttl = 15): void {
+    this.errand = { x, ttl, onArrive }
+  }
+  face(direction: 1 | -1): void {
+    this.facing = direction
+  }
   release(): void {
     this.held = false
     this.vy = 0
@@ -254,8 +265,10 @@ export class PetActor {
     } else {
       // ขึ้น/ลงแท่นฉากแบบนุ่มๆ
       this.y = THREE.MathUtils.damp(this.y, ground, 14, dt)
+      if (this.errand && (this.errand.ttl -= dt) <= 0) this.errand = null
       if (this.isEgg) this.targetX = null
       else if (this.errand) this.targetX = this.errand.x
+      else if (this.attending) this.targetX = null
       else {
         this.pickTarget(behavior)
         this.makeRoom(others)
@@ -297,14 +310,24 @@ export class PetActor {
     const hit = this.hit
     const look = cursor.seen ? THREE.MathUtils.clamp((cursor.x - hit.x) / 380, -1, 1) : 0
     this.playTimer = Math.max(0, this.playTimer - dt)
+    this.loveTimer = Math.max(0, this.loveTimer - dt)
     this.creature.hatch = this.state.incubation ?? 0
-    const wantsLove = behavior === 'beg' || behavior === 'seekAttention'
+    const wantsLove = this.loveTimer > 0 || behavior === 'beg' || behavior === 'seekAttention'
     const flying = this.held || this.airborne
     this.creature.update(dt, {
-      pose: moving || flying ? 'auto' : this.playTimer > 0 ? 'play' : wantsLove ? 'love' : 'auto',
+      pose:
+        moving || flying
+          ? 'auto'
+          : this.loveTimer > 0
+            ? 'love'
+            : this.playTimer > 0
+              ? 'play'
+              : wantsLove
+                ? 'love'
+                : 'auto',
       speed: moving ? (behavior === 'zoomies' ? 1 : 0.6) : 0,
       emotion: this.emotion,
-      asleep: asleep && !flying && !moving,
+      asleep: asleep && !flying && !moving && !this.attending,
       held: this.held,
       flying,
       lookX: THREE.MathUtils.clamp(look - this.yaw * 0.6, -1, 1),

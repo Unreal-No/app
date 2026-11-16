@@ -1,4 +1,6 @@
 import {
+  breedPets,
+  canBreed,
   carePet,
   createSave,
   MAX_ACTIVE_PETS,
@@ -9,7 +11,7 @@ import {
   type SaveData,
 } from '@mochimon/core'
 import { PetActor } from './pet'
-import { newEgg, storeSave } from './store'
+import { newEgg, pickName, storeSave } from './store'
 import { cursor, habitatKind, layout, rng, settings, userActive } from './world'
 
 /**
@@ -28,8 +30,19 @@ export const allNames = (): string[] => [
 ]
 export const findPet = (id: string): PetActor | undefined => pets.find((p) => p.state.id === id)
 
+/** ตำแหน่งว่างที่ใกล้ x ที่สุด (ไข่ขยับเองไม่ได้ จึงต้องวางให้ไม่ทับใครตั้งแต่แรก) */
+function freeSpot(x: number): number {
+  const taken = (at: number): boolean => pets.some((p) => Math.abs(p.x - at) < 80)
+  for (const offset of [0, 90, -90, 180, -180, 270, -270]) {
+    const at = Math.min(layout.width - 80, Math.max(80, x + offset))
+    if (!taken(at)) return at
+  }
+  return x
+}
+
 export function addPet(state: PetState, x?: number): PetActor {
-  const actor = new PetActor(state, x)
+  const wanted = x ?? layout.width * rng.range(0.25, 0.7)
+  const actor = new PetActor(state, state.nurture.stage === 'egg' ? freeSpot(wanted) : wanted)
   pets.push(actor)
   reslot()
   return actor
@@ -146,6 +159,52 @@ export function recallFromFarm(): PetActor | null {
   actor.say('กลับมาแล้ว~', 3)
   saveNow()
   return actor
+}
+
+// ───────── ผสมพันธุ์ ─────────
+/** ตัวที่จับคู่กับ actor ได้ตอนนี้ */
+export const partnersFor = (actor: PetActor): PetActor[] =>
+  canBreed(actor.state) ? pets.filter((other) => other !== actor && canBreed(other.state)) : []
+
+/**
+ * จับคู่: ทั้งสองเดินมาหากัน แสดงความรัก แล้วได้ไข่ใบใหม่ (ลูกได้ยีนส์จากพ่อแม่ + โอกาสกลายพันธุ์)
+ * คืน false ถ้าเริ่มไม่ได้
+ */
+export function startPairing(a: PetActor, b: PetActor): boolean {
+  if (a === b || !canBreed(a.state) || !canBreed(b.state)) return false
+  if (!hasRoom()) {
+    a.say(`บนจออยู่ได้ ${MAX_ACTIVE_PETS} ตัว ฝากฟาร์มก่อนนะ`, 4)
+    return false
+  }
+  const [left, right] = a.x <= b.x ? [a, b] : [b, a]
+  const gap = (a.hit.r + b.hit.r) * 0.6
+  const mid = Math.min(layout.width - 140, Math.max(140, (a.x + b.x) / 2))
+  let arrived = 0
+  const meet = (): void => {
+    if (++arrived < 2) return
+    left.face(1)
+    right.face(-1)
+    for (const actor of [a, b]) {
+      actor.loveTimer = 3
+      actor.hearts()
+      actor.say('♥')
+    }
+    setTimeout(() => {
+      // ระหว่างรอ อาจมีตัวถูกฝากฟาร์มหรือที่เต็มไปแล้ว
+      if (!pets.includes(a) || !pets.includes(b) || !hasRoom()) return
+      const egg = breedPets(a.state, b.state, pickName(rng, allNames()), rng)
+      if (!egg) return
+      addPet(egg, mid).say('ไข่ใบใหม่! ลูบเพื่อช่วยฟัก', 4)
+      saveNow()
+    }, 1800)
+  }
+  for (const actor of [a, b]) {
+    // ตื่นและอยู่นิ่งๆ ระหว่างนัดพบ
+    actor.state = { ...actor.state, behavior: 'idle', behaviorTimer: 20 }
+  }
+  left.goTo(mid - gap, meet)
+  right.goTo(mid + gap, meet)
+  return true
 }
 
 // ───────── จำลองชีวิต ─────────

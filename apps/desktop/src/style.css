@@ -77,3 +77,167 @@ body {
     opacity: 0;
   }
 }
+
+/* ───────── แผงดูแล ───────── */
+.panel {
+  position: absolute;
+  width: 244px;
+  box-sizing: border-box;
+  padding: 10px 12px 12px;
+  background: #fffdf8;
+  color: #4a3b52;
+  border: 2px solid #4a3b52;
+  border-radius: 18px;
+  box-shadow: 0 6px 0 rgba(74, 59, 82, 0.18);
+  font-size: 13px;
+  line-height: 1.35;
+  pointer-events: auto;
+}
+.panel[hidden] {
+  display: none;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.panel-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: text;
+  border-radius: 8px;
+  padding: 0 4px;
+  margin-left: -4px;
+}
+.panel-name:hover {
+  background: #f3e9f7;
+}
+.panel-name-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  color: inherit;
+  border: 2px solid #b79ad6;
+  border-radius: 8px;
+  padding: 0 4px;
+  outline: none;
+  background: #ffffff;
+}
+.panel button {
+  font: inherit;
+  color: inherit;
+  background: #f3e9f7;
+  border: 2px solid #4a3b52;
+  border-radius: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.panel button:hover {
+  background: #e6d4f0;
+}
+.panel button:active {
+  transform: translateY(1px);
+}
+.panel button.panel-icon {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  line-height: 1;
+  font-family: 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
+}
+.panel button.panel-close {
+  background: #ffe1e7;
+  font-size: 16px;
+}
+.panel-sub {
+  color: #7a6a84;
+  font-size: 12px;
+}
+.panel-status {
+  margin-top: 4px;
+  font-weight: 600;
+}
+.panel-traits {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+.chip {
+  background: #e3f1fb;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+.panel-needs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+  margin-bottom: 8px;
+}
+.need {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.need-label {
+  font-size: 11px;
+  color: #7a6a84;
+}
+.bar {
+  height: 8px;
+  border-radius: 6px;
+  background: #ece4f0;
+  overflow: hidden;
+}
+.bar-hatch {
+  height: 12px;
+  margin: 4px 0;
+}
+.bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 6px;
+  background: #8fd6a8;
+  transition: width 0.4s;
+}
+.bar-fill.low {
+  background: #ff9aa8;
+}
+.bar-hatch .bar-fill {
+  background: #ffcf7a;
+}
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.panel-partners button {
+  width: 100%;
+  text-align: left;
+}
+.panel-footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 2px dotted #d9cbe2;
+}
+.panel-hint {
+  color: #7a6a84;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.panel-genes {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.panel-genes summary {
+  cursor: pointer;
+  color: #7a6a84;
+}

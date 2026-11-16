@@ -12,6 +12,15 @@ import {
   saveNow,
   tickAll,
 } from './game'
+import {
+  closePanel,
+  cyclePanel,
+  openPanel,
+  panelActor,
+  panelRect,
+  pickPartner,
+  updatePanel,
+} from './panel'
 import type { PetActor } from './pet'
 import { firstPet, loadSave } from './store'
 import {
@@ -62,12 +71,23 @@ const endPress = (e: PointerEvent) => {
   if (!press) return
   if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId)
   if (press.dragging) press.actor.release()
-  // คลิกสั้นๆ = ลูบ
-  else if (performance.now() - press.time < 600) care(press.actor, 'pet')
+  // คลิกสั้นๆ = ลูบ (หรือเลือกคู่ ถ้าแผงกำลังรอให้เลือก)
+  else if (performance.now() - press.time < 600 && !pickPartner(press.actor))
+    care(press.actor, 'pet')
   press = null
 }
 canvas.addEventListener('pointerup', endPress)
 canvas.addEventListener('pointercancel', endPress)
+
+// คลิกขวาที่สัตว์ = เปิด/ปิดแผงดูแล
+addEventListener('contextmenu', (e) => {
+  e.preventDefault()
+  if (e.target !== canvas) return
+  const actor = petAt(e.clientX, e.clientY)
+  if (!actor) return
+  if (panelActor() === actor) closePanel()
+  else openPanel(actor)
+})
 
 // ───────── เมนู tray ─────────
 onTray((action) => {
@@ -88,6 +108,9 @@ onTray((action) => {
       break
     case 'farm-recall':
       recallFromFarm()
+      break
+    case 'panel':
+      cyclePanel()
       break
     default:
       if (action.startsWith('habitat-')) {
@@ -113,6 +136,8 @@ function reportHitShapes(): void {
         const hit = actor.hit
         return { x: Math.round(hit.x), y: Math.round(hit.y), r: Math.round(hit.r) }
       })
+  const panel = panelRect()
+  if (panel && !press?.dragging) shapes.push(panel)
   const key = JSON.stringify(shapes)
   if (key === shapesKey) return
   shapesKey = key
@@ -145,6 +170,7 @@ function frame(now: number): void {
   }
 
   for (const actor of pets) actor.update(dt, pets)
+  updatePanel()
   reportHitShapes()
   canvas.style.cursor = press?.dragging
     ? 'grabbing'
@@ -171,7 +197,9 @@ async function start(): Promise<void> {
   addEventListener('resize', () => void getLayout().then(applyLayout))
   addEventListener('beforeunload', saveNow)
   // สำหรับการทดสอบอัตโนมัติ
-  Object.assign(window, { __game: { pets, farm: () => farm, saveNow, addPet, settings } })
+  Object.assign(window, {
+    __game: { pets, farm: () => farm, saveNow, addPet, settings, openPanel, closePanel },
+  })
   requestAnimationFrame(frame)
 }
 void start()

@@ -15,11 +15,9 @@ export interface DesktopLayout {
   groundY: number
 }
 
-export interface HitShape {
-  x: number
-  y: number
-  r: number
-}
+/** พื้นที่จับต้องได้: วงกลม (จุดศูนย์กลาง + รัศมี) หรือสี่เหลี่ยม (มุมซ้ายบน + ขนาด) */
+export type HitShape =
+  { x: number; y: number; r: number } | { x: number; y: number; w: number; h: number }
 
 export type TrayAction =
   | 'call'
@@ -29,6 +27,7 @@ export type TrayAction =
   | 'quiet-off'
   | 'reroll'
   | 'farm-recall'
+  | 'panel'
   | 'habitat-none'
   | 'habitat-meadow'
   | 'habitat-cloud'
@@ -78,4 +77,12 @@ export async function readSaveFiles(): Promise<string[]> {
 /** เขียนไฟล์เซฟ (ฝั่ง Rust เขียนแบบ atomic และหมุนสำเนาสำรองให้) */
 export function writeSaveFile(json: string): void {
   if (isTauri) void invoke('store_save', { json }).catch(() => undefined)
+}
+
+/**
+ * ขอให้หน้าต่างรับคีย์บอร์ดชั่วคราว (ปกติหน้าต่าง overlay ไม่รับ focus เพื่อไม่แย่งงานของผู้ใช้)
+ * ใช้ตอนพิมพ์ตั้งชื่อสัตว์เท่านั้น
+ */
+export function setKeyboardFocus(on: boolean): void {
+  if (isTauri) void invoke('set_keyboard_focus', { on }).catch(() => undefined)
 }

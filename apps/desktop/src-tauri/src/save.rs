@@ -27,7 +27,9 @@ fn save_dir(app: &AppHandle) -> Result<PathBuf, String> {
 /// ควรหมุนสำเนาสำรองไหม: ยังไม่มีสำเนาเลย หรือสำเนาล่าสุดเก่ากว่า `ROTATE_EVERY`
 fn backup_is_due(dir: &Path, now: SystemTime) -> bool {
     match fs::metadata(dir.join(BACKUPS[0])).and_then(|meta| meta.modified()) {
-        Ok(modified) => now.duration_since(modified).map_or(true, |age| age >= ROTATE_EVERY),
+        Ok(modified) => now
+            .duration_since(modified)
+            .map_or(true, |age| age >= ROTATE_EVERY),
         Err(_) => true,
     }
 }
