@@ -5,6 +5,7 @@ import {
   viewPet,
   type Behavior,
   type EmotionLabel,
+  type Perch,
   type PetState,
   type Temperament,
 } from '@mochimon/core'
@@ -12,6 +13,7 @@ import { createBlobShadow, Creature } from '@mochimon/creature'
 import { Bubble, floatIcons } from './fx'
 import { LINES, STAGE_TH } from './text'
 import {
+  activePerches,
   cursor,
   flipY,
   groundLevel,
@@ -22,11 +24,14 @@ import {
   scene,
   settings,
   surfaceAt,
+  windowById,
 } from './world'
 
 const WALK_SPEED = 60
 const GRAVITY = 2600
 const EDGE_MARGIN = 70
+/** ก้าวเวลาของฟิสิกส์ตอนลอยกลางอากาศ (วินาที) */
+const PHYSICS_STEP = 1 / 120
 /** ตำแหน่งพักรอบจุดพักผ่อน เรียงตามลำดับของสัตว์ (ไม่ให้กองทับกัน) */
 const REST_OFFSETS = [0, -78, 78, -156]
 
@@ -47,6 +52,8 @@ export class PetActor {
   held = false
   /** กำลังเดินอยู่ในเฟรมนี้ */
   moving = false
+  /** กำลังขยับหลบเพื่อนที่ยืนทับกัน */
+  shuffling = false
   /** เวลาที่เหลือของท่าเล่นลูกบอล (วินาที) */
   playTimer = 0
   /** เป้าหมายที่สั่งจากภายนอก (เช่น เดินไปหาคู่) — มาก่อนพฤติกรรมปกติ */
@@ -65,6 +72,10 @@ export class PetActor {
   private squash = 0
   private grabOffset = { x: 0, y: 0 }
   private built = { stage: '', fat: 0, fitness: 0 }
+  /** ขอบหน้าต่างที่ยืนอยู่ + ตำแหน่งของหน้าต่างนั้นตอนเฟรมก่อน (ใช้เกาะตามเมื่อหน้าต่างถูกลาก) */
+  private standing: { perch: Perch; winX: number; winY: number } | null = null
+  /** ขอบหน้าต่างที่ตั้งใจจะกระโดดขึ้นไป */
+  private climb: Perch | null = null
 
   constructor(state: PetState, x?: number) {
     this.state = state
@@ -126,6 +137,10 @@ export class PetActor {
     }
   }
 
+  /** กำลังลอยอยู่กลางอากาศ (กระโดด/ร่วง) */
+  get inAir(): boolean {
+    return this.airborne
+  }
   get isEgg(): boolean {
     return this.state.nurture.stage === 'egg'
   }
@@ -185,10 +200,11 @@ export class PetActor {
   private pickTarget(behavior: Behavior): void {
     const min = EDGE_MARGIN
     const max = layout.width - EDGE_MARGIN
+    if (behavior !== 'wander' && behavior !== 'zoomies') this.climb = null
     switch (behavior) {
       case 'wander':
       case 'zoomies':
-        if (this.targetX === null) this.targetX = rng.range(min, max)
+        if (this.targetX === null) this.pickWanderTarget(min, max)
         break
       case 'followCursor':
       case 'seekAttention':
@@ -204,7 +220,8 @@ export class PetActor {
       case 'sleep':
       case 'sit': {
         // มีฉากมุมพักผ่อน → เดินกลับไปพักบน/ข้างฉาก
-        const spot = restSpot()
+        // (ถ้านั่งอยู่บนขอบหน้าต่างก็พักตรงนั้นเลย)
+        const spot = this.standing ? null : restSpot()
         this.targetX = spot === null ? null : spot + (REST_OFFSETS[this.slot] ?? 0)
         break
       }
@@ -213,50 +230,133 @@ export class PetActor {
     }
   }
 
+  /**
+   * เลือกจุดเดินเล่น: บนขอบหน้าต่างก็เดินอยู่บนขอบเป็นหลัก; บนพื้นบางครั้งนึกสนุกอยากปีนขึ้นหน้าต่าง
+   * (ตัวที่อยากรู้อยากเห็น/ซน ทำบ่อยกว่า)
+   */
+  private pickWanderTarget(min: number, max: number): void {
+    const here = this.standing?.perch
+    if (here && rng.chance(0.75)) {
+      this.targetX = rng.range(here.x1 + 24, here.x2 - 24)
+      return
+    }
+    const urge = 0.15 + this.personality.curious * 0.35 + this.personality.mischief * 0.2
+    if (rng.chance(urge) && this.aimForLedge()) return
+    this.targetX = rng.range(min, max)
+  }
+
+  /** เล็งขอบหน้าต่างสักแห่งแล้วเดินไปใต้ขอบนั้นเพื่อกระโดดขึ้น — คืน false ถ้าไม่มีขอบให้ปีน */
+  aimForLedge(): boolean {
+    if (this.isEgg || this.state.nurture.stage === 'baby') return false
+    const here = this.standing?.perch.windowId
+    const perches = activePerches().filter((perch) => perch.windowId !== here)
+    if (perches.length === 0) return false
+    const perch = rng.pick(perches)
+    this.climb = perch
+    this.targetX = rng.range(perch.x1 + 30, perch.x2 - 30)
+    return true
+  }
+
+  /** กระโดดขึ้นขอบหน้าต่างที่เล็งไว้ (ถ้าขอบนั้นยังอยู่เหนือหัว) */
+  private tryClimb(): boolean {
+    const goal = this.climb
+    this.climb = null
+    if (!goal) return false
+    const perch = activePerches().find(
+      (p) => p.windowId === goal.windowId && this.x >= p.x1 && this.x <= p.x2,
+    )
+    if (!perch) return false
+    const rise = flipY(perch.y) - this.y
+    if (rise < 30) return false
+    // ความเร็วตั้งต้นที่พาขึ้นไปสูงกว่าขอบเล็กน้อย แล้วตกลงมายืนบนขอบ
+    this.vy = Math.sqrt(2 * GRAVITY * (rise + 46))
+    this.airborne = true
+    this.fallFrom = this.y
+    this.droppedByUser = false
+    this.standing = null
+    this.say('ฮึบ!')
+    return true
+  }
+
+  /** ยืนอยู่บนหน้าต่างที่กำลังถูกลาก → เกาะไปด้วย */
+  private rideWindow(): void {
+    if (!this.standing || this.held || this.airborne) return
+    const win = windowById(this.standing.perch.windowId)
+    if (!win) return
+    this.x = THREE.MathUtils.clamp(this.x + win.x - this.standing.winX, 20, layout.width - 20)
+    this.y -= win.y - this.standing.winY
+    this.standing.winX = win.x
+    this.standing.winY = win.y
+  }
+
   /** ถ้ายืนทับเพื่อนอยู่ ให้ขยับออก (ไข่และตัวที่หลับไม่ขยับ) */
   private makeRoom(others: PetActor[]): void {
     if (this.targetX !== null || this.state.behavior === 'sleep') return
+    // หาเพื่อนที่ทับกันมากที่สุด
+    let nearest: PetActor | null = null
+    let nearestGap = 0
     for (const other of others) {
-      // ตัวที่กำลังเดินผ่านไม่นับ (เดี๋ยวก็พ้นไปเอง)
-      if (other === this || other.held || other.moving) continue
+      // ตัวที่เดินผ่านไปทำธุระของตัวเองไม่นับ (เดี๋ยวก็พ้นไปเอง) — แต่ตัวที่กำลังขยับหลบกันอยู่ยังนับ
+      if (other === this || other.held || (other.moving && !other.shuffling)) continue
       if (Math.abs(other.y - this.y) > 60) continue
       const gap = (this.hit.r + other.hit.r) * 0.72
-      const dx = this.x - other.x
-      if (Math.abs(dx) >= gap) continue
-      const side = dx !== 0 ? Math.sign(dx) : this.slot > other.slot ? 1 : -1
-      this.targetX = THREE.MathUtils.clamp(
-        other.x + side * (gap + 6),
-        EDGE_MARGIN,
-        layout.width - EDGE_MARGIN,
-      )
-      return
+      const distance = Math.abs(this.x - other.x)
+      if (distance >= gap) continue
+      if (!nearest || distance < Math.abs(this.x - nearest.x)) {
+        nearest = other
+        nearestGap = gap
+      }
     }
+    if (!nearest) return
+    // ยืนจุดเดียวกันพอดี → ตัวที่ลำดับมากกว่าหลบไปทางขวา (ทุกตัวตัดสินตรงกัน จึงไม่เดินตามกันไป)
+    const dx = this.x - nearest.x
+    const side = Math.abs(dx) > 1 ? Math.sign(dx) : this.slot > nearest.slot ? 1 : -1
+    this.targetX = THREE.MathUtils.clamp(
+      nearest.x + side * (nearestGap + 6),
+      EDGE_MARGIN,
+      layout.width - EDGE_MARGIN,
+    )
+    this.shuffling = true
   }
 
   update(dt: number, others: PetActor[]): void {
     const behavior = this.state.behavior
     const asleep = behavior === 'sleep'
-    const ground = surfaceAt(this.x, this.y).y
+    this.rideWindow()
+    const surface = surfaceAt(this.x, this.y)
+    const ground = surface.y
     let moving = false
+    this.shuffling = false
 
     if (this.held) {
       this.targetX = null
       this.airborne = false
+      this.standing = null
+      this.climb = null
     } else if (this.airborne || this.y > ground + 40) {
       if (!this.airborne) {
-        // พื้นใต้เท้าหายไป (เดินพ้นขอบ หรือแท่นถูกย้าย)
+        // พื้นใต้เท้าหายไป: เดินพ้นขอบเอง หรือหน้าต่างที่เกาะอยู่ถูกปิด/ย้าย/ถูกบัง
         this.airborne = true
         this.fallFrom = this.y
         this.droppedByUser = false
+        if (this.standing && !this.moving && !this.isEgg) {
+          this.setState(petEvent(this.state, 'startled'))
+          this.say('ว้าย!')
+        }
+        this.standing = null
       }
-      this.vy -= GRAVITY * dt
-      this.y += this.vy * dt
-      if (this.vy <= 0 && this.y <= ground) {
-        this.y = ground
+      // คำนวณเป็นก้าวย่อยคงที่: เฟรมเรตต่ำ (โหมดประหยัดพลังงาน/เครื่องช้า) ต้องไม่ทำให้กระโดดไม่ถึงหรือทะลุขอบ
+      for (let left = dt; left > 0 && this.airborne; left -= PHYSICS_STEP) {
+        const step = Math.min(left, PHYSICS_STEP)
+        const below = surfaceAt(this.x, this.y).y
+        this.vy -= GRAVITY * step
+        this.y += this.vy * step
+        if (this.vy > 0 || this.y > below) continue
+        this.y = below
         this.vy = 0
         this.airborne = false
         this.squash = 1
-        if (this.droppedByUser && this.fallFrom - ground > 320 && !this.isEgg) {
+        if (this.droppedByUser && this.fallFrom - below > 320 && !this.isEgg) {
           this.setState(petEvent(this.state, 'dropped'))
           this.say('โอ๊ย!')
         }
@@ -265,6 +365,9 @@ export class PetActor {
     } else {
       // ขึ้น/ลงแท่นฉากแบบนุ่มๆ
       this.y = THREE.MathUtils.damp(this.y, ground, 14, dt)
+      const win = surface.perch ? windowById(surface.perch.windowId) : undefined
+      this.standing =
+        surface.perch && win ? { perch: surface.perch, winX: win.x, winY: win.y } : null
       if (this.errand && (this.errand.ttl -= dt) <= 0) this.errand = null
       if (this.isEgg) this.targetX = null
       else if (this.errand) this.targetX = this.errand.x
@@ -288,7 +391,10 @@ export class PetActor {
           done?.()
         } else if (behavior === 'wander' || behavior === 'zoomies') {
           this.targetX = null
-          if (behavior === 'wander') this.state = { ...this.state, behaviorTimer: 0 }
+          if (this.tryClimb()) {
+            // กำลังกระโดดขึ้นขอบหน้าต่าง — ขึ้นไปนั่งชมวิวสักพัก
+            this.state = { ...this.state, behavior: 'sit', behaviorTimer: rng.range(10, 25) }
+          } else if (behavior === 'wander') this.state = { ...this.state, behaviorTimer: 0 }
         } else if (behavior !== 'sit' && behavior !== 'sleep') {
           this.targetX = null
         }

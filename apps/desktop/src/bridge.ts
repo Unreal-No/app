@@ -1,3 +1,4 @@
+import type { DesktopWindow, SaveSettings } from '@mochimon/core'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
@@ -28,6 +29,10 @@ export type TrayAction =
   | 'reroll'
   | 'farm-recall'
   | 'panel'
+  | 'perch-on'
+  | 'perch-off'
+  | 'fshide-on'
+  | 'fshide-off'
   | 'habitat-none'
   | 'habitat-meadow'
   | 'habitat-cloud'
@@ -85,4 +90,23 @@ export function writeSaveFile(json: string): void {
  */
 export function setKeyboardFocus(on: boolean): void {
   if (isTauri) void invoke('set_keyboard_focus', { on }).catch(() => undefined)
+}
+
+/**
+ * หน้าต่างของโปรแกรมอื่นที่มองเห็นอยู่ เรียงจากหน้าสุดไปหลังสุด (พิกัดจอของ overlay)
+ * ในเบราว์เซอร์จำลองได้ด้วย window.dispatchEvent(new CustomEvent('mochimon-platforms', { detail: [...] }))
+ */
+export function onPlatforms(callback: (windows: DesktopWindow[]) => void): void {
+  if (isTauri) {
+    void listen<DesktopWindow[]>('platforms', (e) => callback(e.payload))
+  } else {
+    addEventListener('mochimon-platforms', (e) =>
+      callback((e as CustomEvent<DesktopWindow[]>).detail),
+    )
+  }
+}
+
+/** ให้เครื่องหมายถูกในเมนู tray และเธรดเบื้องหลังของ Rust ตรงกับค่าตั้งที่โหลดจากเซฟ */
+export function syncMenuState(menu: SaveSettings): void {
+  if (isTauri) void invoke('sync_menu_state', { menu }).catch(() => undefined)
 }

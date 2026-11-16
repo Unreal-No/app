@@ -13,6 +13,8 @@ export interface SaveSettings {
   quiet: boolean
   /** ให้สัตว์ปีนไปเกาะขอบหน้าต่างโปรแกรมอื่น */
   perching: boolean
+  /** ซ่อนสัตว์เองเมื่อมีแอป/เกมเต็มจอ */
+  hideOnFullscreen: boolean
 }
 
 /** รูปแบบไฟล์เซฟรุ่นปัจจุบัน */
@@ -31,7 +33,11 @@ export interface SaveData {
 /** จำนวนสัตว์สูงสุดที่เดินบนจอพร้อมกัน (ที่เหลืออยู่ฟาร์ม) */
 export const MAX_ACTIVE_PETS = 4
 
-export const DEFAULT_SETTINGS: SaveSettings = { quiet: false, perching: true }
+export const DEFAULT_SETTINGS: SaveSettings = {
+  quiet: false,
+  perching: true,
+  hideOnFullscreen: true,
+}
 
 export function createSave(
   pets: PetState[],
@@ -143,19 +149,18 @@ export function parseSave(json: string, db: GeneDb = geneDb): SaveData | null {
   if (pets.length === 0) return null
   farm.unshift(...pets.splice(MAX_ACTIVE_PETS))
 
+  // ค่าตั้งที่หาย/ผิดชนิด (เช่น เซฟจากรุ่นเก่า) ใช้ค่าเริ่มต้น
   const settingsRaw = isObject(raw.settings) ? raw.settings : {}
+  const settings = { ...DEFAULT_SETTINGS }
+  for (const key of Object.keys(settings) as (keyof SaveSettings)[]) {
+    if (typeof settingsRaw[key] === 'boolean') settings[key] = settingsRaw[key]
+  }
   return {
     v: 2,
     pets,
     farm,
     habitat: typeof raw.habitat === 'string' ? raw.habitat : null,
-    settings: {
-      quiet: typeof settingsRaw.quiet === 'boolean' ? settingsRaw.quiet : DEFAULT_SETTINGS.quiet,
-      perching:
-        typeof settingsRaw.perching === 'boolean'
-          ? settingsRaw.perching
-          : DEFAULT_SETTINGS.perching,
-    },
+    settings,
     savedAt: num(raw.savedAt, 0, 0, Number.MAX_SAFE_INTEGER),
   }
 }

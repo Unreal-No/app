@@ -121,7 +121,12 @@ describe('ไฟล์เซฟ', () => {
 
   it('เซฟรุ่น 2 เขียนแล้วอ่านกลับได้เหมือนเดิม', () => {
     const egg = breedPets(adult('แม่', 'cat', 'a'), adult('พ่อ', 'koi', 'b'), 'ไข่', new Rng(3))!
-    const save = createSave([mochi(), egg], 'meadow', { quiet: true, perching: false }, 1234)
+    const save = createSave(
+      [mochi(), egg],
+      'meadow',
+      { quiet: true, perching: false, hideOnFullscreen: false },
+      1234,
+    )
     const loaded = parseSave(serializeSave(save))
     expect(loaded).toEqual(save)
   })

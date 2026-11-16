@@ -1,8 +1,28 @@
+use std::sync::atomic::Ordering;
+
 use tauri::{
-    menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
+    menu::{CheckMenuItem, CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
     tray::TrayIconBuilder,
-    App, Emitter, Manager,
+    App, Emitter, Manager, Wry,
 };
+use tauri_plugin_autostart::ManagerExt;
+
+use crate::{MenuState, OverlayState};
+
+/// รายการแบบติ๊กถูกที่ต้องตั้งค่าจากเซฟตอนเริ่มแอป
+pub struct TrayItems {
+    quiet: CheckMenuItem<Wry>,
+    perching: CheckMenuItem<Wry>,
+    hide_on_fullscreen: CheckMenuItem<Wry>,
+}
+
+impl TrayItems {
+    pub fn apply(&self, menu: MenuState) {
+        let _ = self.quiet.set_checked(menu.quiet);
+        let _ = self.perching.set_checked(menu.perching);
+        let _ = self.hide_on_fullscreen.set_checked(menu.hide_on_fullscreen);
+    }
+}
 
 /// เมนู system tray: ทางเข้าหลักของแอป (หน้าต่าง overlay ไม่มีปุ่ม/ขอบ และไม่อยู่บน Taskbar)
 pub fn build(app: &App) -> tauri::Result<()> {
@@ -16,6 +36,15 @@ pub fn build(app: &App) -> tauri::Result<()> {
         .build(app)?;
     let visible = CheckMenuItemBuilder::with_id("visible", "แสดงสัตว์เลี้ยง")
         .checked(true)
+        .build(app)?;
+    let perching = CheckMenuItemBuilder::with_id("perching", "เกาะขอบหน้าต่างโปรแกรมอื่น")
+        .checked(true)
+        .build(app)?;
+    let hide_on_fullscreen = CheckMenuItemBuilder::with_id("fshide", "ซ่อนเมื่อมีแอป/เกมเต็มจอ")
+        .checked(true)
+        .build(app)?;
+    let autostart = CheckMenuItemBuilder::with_id("autostart", "เปิดพร้อม Windows")
+        .checked(app.autolaunch().is_enabled().unwrap_or(false))
         .build(app)?;
     let reroll = MenuItemBuilder::with_id("reroll", "รับไข่ใบใหม่").build(app)?;
     let recall = MenuItemBuilder::with_id("farm-recall", "เรียกกลับจากฟาร์ม").build(app)?;
@@ -34,13 +63,20 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let menu = MenuBuilder::new(app)
         .items(&[&call, &feed, &play, &panel])
         .separator()
-        .items(&[&quiet, &visible])
-        .item(&habitat)
-        .separator()
         .items(&[&reroll, &recall])
         .separator()
+        .items(&[&quiet, &visible, &perching, &hide_on_fullscreen])
+        .item(&habitat)
+        .separator()
+        .item(&autostart)
         .item(&quit)
         .build()?;
+
+    app.manage(TrayItems {
+        quiet: quiet.clone(),
+        perching: perching.clone(),
+        hide_on_fullscreen: hide_on_fullscreen.clone(),
+    });
 
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip("Mochimon")
@@ -55,12 +91,42 @@ pub fn build(app: &App) -> tauri::Result<()> {
             let on = quiet.is_checked().unwrap_or(false);
             let _ = app.emit("tray", if on { "quiet-on" } else { "quiet-off" });
         }
+        "perching" => {
+            let on = perching.is_checked().unwrap_or(true);
+            let _ = app.emit("tray", if on { "perch-on" } else { "perch-off" });
+        }
+        "fshide" => {
+            let on = hide_on_fullscreen.is_checked().unwrap_or(true);
+            app.state::<OverlayState>()
+                .hide_on_fullscreen
+                .store(on, Ordering::Relaxed);
+            let _ = app.emit("tray", if on { "fshide-on" } else { "fshide-off" });
+        }
+        "autostart" => {
+            let launcher = app.autolaunch();
+            let wanted = autostart.is_checked().unwrap_or(false);
+            let result = if wanted {
+                launcher.enable()
+            } else {
+                launcher.disable()
+            };
+            // ตั้งไม่สำเร็จ → ให้เครื่องหมายถูกตรงกับสถานะจริง
+            if result.is_err() {
+                let _ = autostart.set_checked(launcher.is_enabled().unwrap_or(false));
+            }
+        }
         "visible" => {
+            let show = visible.is_checked().unwrap_or(true);
+            let state = app.state::<OverlayState>();
+            state.user_visible.store(show, Ordering::Relaxed);
+            // ถ้ากำลังถูกซ่อนเพราะแอปเต็มจอ ปล่อยให้เธรดเบื้องหลังเป็นคนแสดงกลับเอง
             if let Some(window) = app.get_webview_window("main") {
-                let _ = if visible.is_checked().unwrap_or(true) {
+                let _ = if !show {
+                    window.hide()
+                } else if !state.auto_hidden.load(Ordering::Relaxed) {
                     window.show()
                 } else {
-                    window.hide()
+                    Ok(())
                 };
             }
         }

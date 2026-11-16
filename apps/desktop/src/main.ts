@@ -1,5 +1,13 @@
 import { HABITAT_KINDS, type HabitatKind } from '@mochimon/habitat'
-import { getLayout, onCursor, onTray, setHitShapes, type HitShape } from './bridge'
+import {
+  getLayout,
+  onCursor,
+  onPlatforms,
+  onTray,
+  setHitShapes,
+  syncMenuState,
+  type HitShape,
+} from './bridge'
 import {
   addEgg,
   addPet,
@@ -33,6 +41,7 @@ import {
   scene,
   setHabitat,
   settings,
+  setWindows,
   updateHabitat,
 } from './world'
 
@@ -89,6 +98,8 @@ addEventListener('contextmenu', (e) => {
   else openPanel(actor)
 })
 
+onPlatforms(setWindows)
+
 // ───────── เมนู tray ─────────
 onTray((action) => {
   switch (action) {
@@ -102,6 +113,14 @@ onTray((action) => {
     case 'quiet-on':
     case 'quiet-off':
       settings.quiet = action === 'quiet-on'
+      break
+    case 'perch-on':
+    case 'perch-off':
+      settings.perching = action === 'perch-on'
+      break
+    case 'fshide-on':
+    case 'fshide-off':
+      settings.hideOnFullscreen = action === 'fshide-on'
       break
     case 'reroll':
       addEgg()
@@ -150,6 +169,8 @@ function frame(now: number): void {
   const resting = pets.every(
     (actor) =>
       !actor.held &&
+      !actor.inAir &&
+      !actor.moving &&
       (actor.isEgg || actor.state.behavior === 'sleep' || actor.state.behavior === 'sit'),
   )
   if (now - lastRender < (resting ? 80 : 32)) return
@@ -191,6 +212,7 @@ async function start(): Promise<void> {
   if (save) restore(save)
   else addPet(firstPet()).say('สวัสดี! โมจิเอง', 4)
   saveNow()
+  syncMenuState(settings)
 
   // ความละเอียดจอ/ขนาด Taskbar อาจเปลี่ยนระหว่างใช้งาน
   setInterval(() => void getLayout().then(applyLayout), 5000)

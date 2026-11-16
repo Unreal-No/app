@@ -1,5 +1,13 @@
 import * as THREE from 'three'
-import { DEFAULT_SETTINGS, Rng, surfaceBelow, type Perch, type SaveSettings } from '@mochimon/core'
+import {
+  computePerches,
+  DEFAULT_SETTINGS,
+  Rng,
+  surfaceBelow,
+  type DesktopWindow,
+  type Perch,
+  type SaveSettings,
+} from '@mochimon/core'
 import { createHabitat, type Habitat, type HabitatKind } from '@mochimon/habitat'
 import type { DesktopLayout } from './bridge'
 
@@ -34,6 +42,7 @@ export let layout: DesktopLayout = {
 
 export function applyLayout(next: DesktopLayout): void {
   layout = next
+  refreshPerches()
   renderer.setSize(layout.width, layout.height, false)
   camera.right = layout.width
   camera.top = layout.height
@@ -98,12 +107,26 @@ export const restSpot = (): number | null => habitatActor?.x ?? null
 export const updateHabitat = (dt: number): void => habitatActor?.update(dt)
 
 // ───────── พื้นผิวที่ยืนได้ ─────────
+let windows: DesktopWindow[] = []
 let perches: Perch[] = []
 
-/** ขอบบนของหน้าต่างโปรแกรมอื่นที่เกาะได้ (พิกัดจอ) */
-export function setPerches(next: Perch[]): void {
-  perches = next
+function refreshPerches(): void {
+  perches = computePerches(
+    windows,
+    { x: 0, y: 0, w: layout.width, h: layout.height },
+    layout.groundY,
+    // ขอบที่สูงเกินไปไม่นับ: สัตว์ทั้งตัวต้องอยู่ในจอ
+    { minY: 190 },
+  )
 }
+
+/** รายการหน้าต่างของโปรแกรมอื่น (หน้าสุด → หลังสุด) จากฝั่ง Rust */
+export function setWindows(next: DesktopWindow[]): void {
+  windows = next
+  refreshPerches()
+}
+export const windowById = (id: number): DesktopWindow | undefined =>
+  windows.find((win) => win.id === id)
 export const activePerches = (): Perch[] => (settings.perching ? perches : [])
 
 export interface Surface {

@@ -5,13 +5,19 @@
 //! - สลับ "คลิกทะลุ" ตามตำแหน่งเคอร์เซอร์เทียบกับพื้นที่ที่ frontend แจ้งว่าจับต้องได้
 //! - บอกตำแหน่งพื้น (ขอบบน Taskbar) และตำแหน่งเคอร์เซอร์ให้ frontend
 //! - เมนู system tray
+//! - รายการหน้าต่างของโปรแกรมอื่น (ให้สัตว์เกาะขอบ) และซ่อนสัตว์เมื่อมีแอปเต็มจอ
+//! - เปิดพร้อม Windows (เลือกได้) และกันเปิดซ้ำ
 //! - ไฟล์เซฟในโฟลเดอร์ข้อมูลของแอป (เขียนแบบ atomic + สำเนาสำรองหมุนเวียน)
 
 mod overlay;
+mod platforms;
 mod save;
 mod tray;
 
-use std::sync::Mutex;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
+};
 
 use serde::Deserialize;
 use tauri::{Manager, State, WebviewWindow};
@@ -38,9 +44,46 @@ impl HitShape {
     }
 }
 
-#[derive(Default)]
 pub struct OverlayState {
     pub shapes: Mutex<Vec<HitShape>>,
+    /// ผู้ใช้เลือกให้แสดงสัตว์ (เมนู tray)
+    pub user_visible: AtomicBool,
+    /// ซ่อนเองเมื่อมีแอป/เกมเต็มจออยู่ข้างหน้า
+    pub hide_on_fullscreen: AtomicBool,
+    /// ตอนนี้ถูกซ่อนอยู่เพราะมีแอปเต็มจอ
+    pub auto_hidden: AtomicBool,
+}
+
+impl Default for OverlayState {
+    fn default() -> Self {
+        Self {
+            shapes: Mutex::new(Vec::new()),
+            user_visible: AtomicBool::new(true),
+            hide_on_fullscreen: AtomicBool::new(true),
+            auto_hidden: AtomicBool::new(false),
+        }
+    }
+}
+
+/// ค่าตั้งที่ frontend โหลดจากเซฟ → ให้เมนู tray และเธรดเบื้องหลังตรงกัน
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MenuState {
+    pub quiet: bool,
+    pub perching: bool,
+    pub hide_on_fullscreen: bool,
+}
+
+#[tauri::command]
+fn sync_menu_state(
+    state: State<'_, OverlayState>,
+    items: State<'_, tray::TrayItems>,
+    menu: MenuState,
+) {
+    state
+        .hide_on_fullscreen
+        .store(menu.hide_on_fullscreen, Ordering::Relaxed);
+    items.apply(menu);
 }
 
 /// frontend เรียกทุกครั้งที่สัตว์/วิดเจ็ตขยับ: นอกพื้นที่เหล่านี้เมาส์จะทะลุไปยังแอปข้างหลัง
@@ -69,11 +112,18 @@ fn set_keyboard_focus(window: WebviewWindow, on: bool) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // เปิดซ้ำ → ไม่สร้างสัตว์ชุดที่สอง (เซฟไฟล์เดียวกันจะเขียนทับกัน)
+        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .manage(OverlayState::default())
         .invoke_handler(tauri::generate_handler![
             set_hit_shapes,
             get_desktop_layout,
             set_keyboard_focus,
+            sync_menu_state,
             save::load_save,
             save::store_save
         ])
@@ -86,6 +136,7 @@ pub fn run() {
             window.set_ignore_cursor_events(true)?;
             window.show()?;
             overlay::spawn_cursor_poll(app.handle().clone());
+            platforms::spawn(app.handle().clone());
             tray::build(app)?;
             Ok(())
         })
