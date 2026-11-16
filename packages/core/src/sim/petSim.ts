@@ -1,6 +1,8 @@
 import { geneDb, type GeneDb } from '@mochimon/data'
 import { chooseBehavior, type Behavior } from '../behavior/utility'
-import { DEFAULT_NURTURE, type Nurture } from '../body/composition'
+import { DEFAULT_NURTURE, LIFE_STAGES, type LifeStage, type Nurture } from '../body/composition'
+import { breed } from '../genetics/breed'
+import { serializeGenome } from '../genetics/genome'
 import { express } from '../genetics/express'
 import type { Genome, Phenotype, Temperament } from '../genetics/types'
 import {
@@ -19,10 +21,12 @@ import {
   shapeExperience,
   type Experience,
 } from '../mind/personality'
-import type { Rng } from '../rng'
+import { hashString, type Rng } from '../rng'
 
 /** สถานะทั้งหมดของสัตว์ 1 ตัว (ส่วนที่ต้องเซฟ) */
 export interface PetState {
+  /** รหัสประจำตัว (ไม่ซ้ำกันในเซฟเดียวกัน) */
+  id: string
   name: string
   genome: Genome
   nurture: Nurture
@@ -34,6 +38,10 @@ export interface PetState {
   behaviorTimer: number
   /** ความคืบหน้าการฟัก 0..1 (ใช้เฉพาะช่วงวัย 'egg') */
   incubation?: number
+  /** อายุสะสมหลังฟัก (วินาทีที่ผู้ใช้อยู่หน้าจอ) — ใช้กำหนดช่วงวัย */
+  ageSeconds: number
+  /** รหัสของพ่อแม่ (ถ้าเกิดจากการผสมพันธุ์) */
+  parents?: [string, string]
 }
 
 export interface WorldContext {
@@ -43,12 +51,49 @@ export interface WorldContext {
   quiet: boolean
 }
 
+/**
+ * อายุสะสม (วินาที) ที่เริ่มเข้าสู่แต่ละช่วงวัย — ปรับความเร็วการเติบโตได้ที่นี่ที่เดียว
+ * เบบี้ → เด็ก 20 นาที → วัยรุ่น 2 ชม. → โตเต็มวัย 6 ชม. → ผู้อาวุโส 60 ชม.
+ */
+export const STAGE_START_SECONDS: Record<Exclude<LifeStage, 'egg'>, number> = {
+  baby: 0,
+  child: 20 * 60,
+  teen: 2 * 3600,
+  adult: 6 * 3600,
+  elder: 60 * 3600,
+}
+
+/** ช่วงวัยที่ควรเป็นเมื่ออายุสะสมเท่านี้ */
+export function stageForAge(ageSeconds: number): Exclude<LifeStage, 'egg'> {
+  let stage: Exclude<LifeStage, 'egg'> = 'baby'
+  for (const [name, start] of Object.entries(STAGE_START_SECONDS) as [
+    Exclude<LifeStage, 'egg'>,
+    number,
+  ][]) {
+    if (ageSeconds >= start) stage = name
+  }
+  return stage
+}
+
+/** รหัสประจำตัวจากเมล็ดสุ่ม (ให้ผู้เรียกส่ง Rng มาเพื่อให้ทำซ้ำได้ในการทดสอบ) */
+export function newPetId(rng: Rng): string {
+  return `pet-${Math.floor(rng.next() * 36 ** 6)
+    .toString(36)
+    .padStart(6, '0')}${Math.floor(rng.next() * 36 ** 4)
+    .toString(36)
+    .padStart(4, '0')}`
+}
+
 export function createPet(
   name: string,
   genome: Genome,
   nurture: Nurture = DEFAULT_NURTURE,
+  id = `pet-${hashString(serializeGenome(genome) + name).toString(36)}`,
 ): PetState {
   return {
+    id,
+    // เริ่มที่อายุขั้นต่ำของช่วงวัยที่ระบุ: สัตว์ที่สร้างเป็น "เด็ก" จะไม่ถอยกลับเป็นเบบี้
+    ageSeconds: nurture.stage === 'egg' ? 0 : STAGE_START_SECONDS[nurture.stage],
     name,
     genome,
     nurture: { ...nurture },
@@ -57,6 +102,7 @@ export function createPet(
     experience: noExperience(),
     behavior: 'idle',
     behaviorTimer: 0,
+    ...(nurture.stage === 'egg' ? { incubation: 0 } : {}),
   }
 }
 
@@ -158,7 +204,14 @@ export function tickPet(
     const [min, max] = BEHAVIOR_DURATION[behavior]
     behaviorTimer = rng.range(min, max)
   }
-  return { ...pet, needs, emotion, behavior, behaviorTimer }
+  // เติบโตตามเวลาที่ผู้ใช้อยู่ด้วย (ไม่มีการถอยวัย)
+  const ageSeconds = pet.ageSeconds + (world.userActive ? dtSec : 0)
+  const grown = stageForAge(ageSeconds)
+  const nurture =
+    LIFE_STAGES.indexOf(grown) > LIFE_STAGES.indexOf(pet.nurture.stage)
+      ? { ...pet.nurture, stage: grown }
+      : pet.nurture
+  return { ...pet, needs, emotion, behavior, behaviorTimer, ageSeconds, nurture }
 }
 
 /**
@@ -172,6 +225,7 @@ export function incubate(pet: PetState, amount: number): PetState {
   return {
     ...pet,
     incubation: 1,
+    ageSeconds: 0,
     nurture: { ...pet.nurture, stage: 'baby' },
     needs: fullNeeds(),
     emotion: { valence: 0.7, arousal: 0.7, mood: 0.4 },
@@ -212,4 +266,25 @@ export function carePet(pet: PetState, action: CareAction, db: GeneDb = geneDb):
   const next = { ...pet, needs, nurture }
   const event = CARE_EVENT[action]
   return event ? petEvent(next, event, db) : next
+}
+
+/** ช่วงวัยที่ผสมพันธุ์ได้ */
+export const canBreed = (pet: PetState): boolean =>
+  pet.nurture.stage === 'teen' || pet.nurture.stage === 'adult' || pet.nurture.stage === 'elder'
+
+/**
+ * ผสมพันธุ์สัตว์ 2 ตัว → ไข่ใบใหม่ (ยังไม่ฟัก) ที่จำพ่อแม่ได้
+ * คืน null ถ้าจับคู่ไม่ได้ (ตัวเดียวกัน หรือยังเด็กเกินไป)
+ */
+export function breedPets(
+  a: PetState,
+  b: PetState,
+  name: string,
+  rng: Rng,
+  db: GeneDb = geneDb,
+): PetState | null {
+  if (a.id === b.id || !canBreed(a) || !canBreed(b)) return null
+  const { genome } = breed(a.genome, b.genome, rng, { db })
+  const egg = createPet(name, genome, { stage: 'egg', fat: 0.35, fitness: 0.4 }, newPetId(rng))
+  return { ...egg, parents: [a.id, b.id] }
 }
