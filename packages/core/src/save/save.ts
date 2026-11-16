@@ -18,12 +18,18 @@ export interface SaveSettings {
 /** รูปแบบไฟล์เซฟรุ่นปัจจุบัน */
 export interface SaveData {
   v: 2
+  /** สัตว์ที่อยู่บนจอ (ไม่เกิน MAX_ACTIVE_PETS) */
   pets: PetState[]
+  /** สัตว์ที่ฝากไว้ที่ฟาร์ม (ไม่ได้อยู่บนจอ เวลาของพวกมันหยุดนิ่ง) */
+  farm: PetState[]
   /** ฉากมุมพักผ่อนที่เลือก (null = โหมดกลมกลืน) */
   habitat: string | null
   settings: SaveSettings
   savedAt: number
 }
+
+/** จำนวนสัตว์สูงสุดที่เดินบนจอพร้อมกัน (ที่เหลืออยู่ฟาร์ม) */
+export const MAX_ACTIVE_PETS = 4
 
 export const DEFAULT_SETTINGS: SaveSettings = { quiet: false, perching: true }
 
@@ -32,8 +38,9 @@ export function createSave(
   habitat: string | null = null,
   settings: SaveSettings = DEFAULT_SETTINGS,
   savedAt = 0,
+  farm: PetState[] = [],
 ): SaveData {
-  return { v: 2, pets, habitat, settings: { ...settings }, savedAt }
+  return { v: 2, pets, farm, habitat, settings: { ...settings }, savedAt }
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -116,22 +123,31 @@ export function parseSave(json: string, db: GeneDb = geneDb): SaveData | null {
   const rawPets = raw.v === 1 ? [raw.pet] : raw.v === 2 && Array.isArray(raw.pets) ? raw.pets : null
   if (!rawPets) return null
 
-  const pets: PetState[] = []
   const seen = new Set<string>()
-  rawPets.forEach((entry, index) => {
-    const pet = repairPet(entry, index, db)
-    if (!pet) return
-    // รหัสซ้ำ (เซฟถูกแก้มือ/เสีย) → ตั้งใหม่ให้ไม่ซ้ำ
-    while (seen.has(pet.id)) pet.id = `${pet.id}-x`
-    seen.add(pet.id)
-    pets.push(pet)
-  })
+  const repairAll = (entries: unknown[], offset: number): PetState[] => {
+    const list: PetState[] = []
+    entries.forEach((entry, index) => {
+      const pet = repairPet(entry, offset + index, db)
+      if (!pet) return
+      // รหัสซ้ำ (เซฟถูกแก้มือ/เสีย) → ตั้งใหม่ให้ไม่ซ้ำ
+      while (seen.has(pet.id)) pet.id = `${pet.id}-x`
+      seen.add(pet.id)
+      list.push(pet)
+    })
+    return list
+  }
+  const pets = repairAll(rawPets, 0)
+  const farm = repairAll(Array.isArray(raw.farm) ? raw.farm : [], rawPets.length)
+  // บนจอว่างแต่ฟาร์มมีสัตว์ → พาตัวแรกกลับมา; บนจอเกินโควตา → ส่วนเกินไปฟาร์ม (ไม่มีตัวไหนหาย)
+  if (pets.length === 0 && farm.length > 0) pets.push(farm.shift()!)
   if (pets.length === 0) return null
+  farm.unshift(...pets.splice(MAX_ACTIVE_PETS))
 
   const settingsRaw = isObject(raw.settings) ? raw.settings : {}
   return {
     v: 2,
     pets,
+    farm,
     habitat: typeof raw.habitat === 'string' ? raw.habitat : null,
     settings: {
       quiet: typeof settingsRaw.quiet === 'boolean' ? settingsRaw.quiet : DEFAULT_SETTINGS.quiet,

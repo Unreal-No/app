@@ -10,6 +10,7 @@ import {
   DEFAULT_SETTINGS,
   firstValidSave,
   INCUBATION_SECONDS,
+  MAX_ACTIVE_PETS,
   newPetId,
   parseSave,
   Rng,
@@ -207,6 +208,20 @@ describe('ไฟล์เซฟ', () => {
     const a = mochi()
     const loaded = parseSave(JSON.stringify({ v: 2, pets: [a, a, a] }))!
     expect(new Set(loaded.pets.map((p) => p.id)).size).toBe(3)
+  })
+
+  it('สัตว์ที่ฝากฟาร์มถูกเก็บไว้ และบนจอมีไม่เกินโควตา (ส่วนเกินไปฟาร์ม ไม่หาย)', () => {
+    const many = Array.from({ length: 6 }, (_, i) => adult(`ตัว${i}`, 'cat', `m${i}`))
+    const farmed = adult('ฟาร์ม', 'koi', 'f')
+    const loaded = parseSave(JSON.stringify({ v: 2, pets: many, farm: [farmed, 'bad'] }))!
+    expect(loaded.pets).toHaveLength(MAX_ACTIVE_PETS)
+    expect(loaded.farm.map((p) => p.name)).toEqual(['ตัว4', 'ตัว5', 'ฟาร์ม'])
+    const all = [...loaded.pets, ...loaded.farm].map((p) => p.id)
+    expect(new Set(all).size).toBe(7)
+    // บนจอว่างแต่ฟาร์มมี → ตัวแรกกลับมาอยู่บนจอ
+    const onlyFarm = parseSave(JSON.stringify({ v: 2, pets: [], farm: [farmed] }))!
+    expect(onlyFarm.pets.map((p) => p.name)).toEqual(['ฟาร์ม'])
+    expect(onlyFarm.farm).toEqual([])
   })
 
   it('firstValidSave ข้ามไฟล์ที่เสียไปใช้สำเนาสำรองที่อ่านได้', () => {

@@ -15,7 +15,8 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let visible = CheckMenuItemBuilder::with_id("visible", "แสดงสัตว์เลี้ยง")
         .checked(true)
         .build(app)?;
-    let reroll = MenuItemBuilder::with_id("reroll", "รับไข่ใบใหม่ (ทดลอง)").build(app)?;
+    let reroll = MenuItemBuilder::with_id("reroll", "รับไข่ใบใหม่").build(app)?;
+    let recall = MenuItemBuilder::with_id("farm-recall", "เรียกกลับจากฟาร์ม").build(app)?;
 
     // โหมดฉากหลัง: กลมกลืน (ไม่มีฉาก) หรือมุมพักผ่อนพร้อมไดโอรามา
     let habitat = SubmenuBuilder::new(app, "ฉากมุมพักผ่อน")
@@ -34,7 +35,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
         .items(&[&quiet, &visible])
         .item(&habitat)
         .separator()
-        .item(&reroll)
+        .items(&[&reroll, &recall])
         .separator()
         .item(&quit)
         .build()?;
@@ -61,7 +62,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
                 };
             }
         }
-        id @ ("call" | "feed" | "play" | "reroll") => {
+        id @ ("call" | "feed" | "play" | "reroll" | "farm-recall") => {
             let _ = app.emit("tray", id);
         }
         id if id.starts_with("habitat-") => {

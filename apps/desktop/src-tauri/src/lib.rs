@@ -1,12 +1,14 @@
 //! Mochimon desktop shell
 //!
-//! หน้าที่ของฝั่ง Rust ใน M0:
+//! หน้าที่ของฝั่ง Rust:
 //! - จัดหน้าต่าง overlay โปร่งใสให้คลุมจอหลัก (อยู่บนสุดเสมอ, ไม่แย่ง focus)
 //! - สลับ "คลิกทะลุ" ตามตำแหน่งเคอร์เซอร์เทียบกับพื้นที่ที่ frontend แจ้งว่าจับต้องได้
 //! - บอกตำแหน่งพื้น (ขอบบน Taskbar) และตำแหน่งเคอร์เซอร์ให้ frontend
 //! - เมนู system tray
+//! - ไฟล์เซฟในโฟลเดอร์ข้อมูลของแอป (เขียนแบบ atomic + สำเนาสำรองหมุนเวียน)
 
 mod overlay;
+mod save;
 mod tray;
 
 use std::sync::Mutex;
@@ -51,7 +53,12 @@ fn get_desktop_layout(window: WebviewWindow) -> Result<overlay::DesktopLayout, S
 pub fn run() {
     tauri::Builder::default()
         .manage(OverlayState::default())
-        .invoke_handler(tauri::generate_handler![set_hit_shapes, get_desktop_layout])
+        .invoke_handler(tauri::generate_handler![
+            set_hit_shapes,
+            get_desktop_layout,
+            save::load_save,
+            save::store_save
+        ])
         .setup(|app| {
             let window = app
                 .get_webview_window("main")

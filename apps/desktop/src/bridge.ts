@@ -28,6 +28,7 @@ export type TrayAction =
   | 'quiet-on'
   | 'quiet-off'
   | 'reroll'
+  | 'farm-recall'
   | 'habitat-none'
   | 'habitat-meadow'
   | 'habitat-cloud'
@@ -62,4 +63,19 @@ export function onTray(callback: (action: TrayAction) => void): void {
     // ในเบราว์เซอร์ไม่มี tray: จำลองได้ด้วย window.dispatchEvent(new CustomEvent('mochimon-tray', { detail: 'feed' }))
     addEventListener('mochimon-tray', (e) => callback((e as CustomEvent<TrayAction>).detail))
   }
+}
+
+/** เนื้อหาไฟล์เซฟทั้งหมดที่อ่านได้ เรียงจากไฟล์หลักแล้วสำเนาสำรองใหม่→เก่า (ในเบราว์เซอร์ไม่มีไฟล์) */
+export async function readSaveFiles(): Promise<string[]> {
+  if (!isTauri) return []
+  try {
+    return await invoke<string[]>('load_save')
+  } catch {
+    return []
+  }
+}
+
+/** เขียนไฟล์เซฟ (ฝั่ง Rust เขียนแบบ atomic และหมุนสำเนาสำรองให้) */
+export function writeSaveFile(json: string): void {
+  if (isTauri) void invoke('store_save', { json }).catch(() => undefined)
 }

@@ -16,7 +16,8 @@ body {
   display: block;
   touch-action: none;
 }
-#fx {
+#fx,
+#ui {
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -50,14 +51,21 @@ body {
   border-bottom: 2px solid #4a3b52;
   transform: translateX(-50%) rotate(45deg);
 }
-.heart {
+.float {
   position: absolute;
-  color: #ff7d9c;
+  font-family: 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
   font-size: 22px;
   text-shadow:
     0 0 2px #ffffff,
     0 0 2px #ffffff;
+  opacity: 0;
   animation: float-up 1.1s ease-out forwards;
+}
+.float.heart {
+  color: #ff7d9c;
+}
+.float.note {
+  color: #6a8bd8;
 }
 @keyframes float-up {
   from {
