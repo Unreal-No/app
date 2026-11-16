@@ -175,3 +175,19 @@ export function firstValidSave(candidates: string[], db: GeneDb = geneDb): SaveD
   }
   return null
 }
+
+/**
+ * เลือกเซฟที่จะใช้ตอนเริ่มแอป: เซฟจากไฟล์ (หลัก → สำรอง) เทียบกับสำเนาอีกที่หนึ่ง (เช่น localStorage)
+ * แล้วใช้อัน**ใหม่กว่า** — ถ้าการเขียนไฟล์ครั้งล่าสุดไม่สำเร็จ สำเนาอีกที่จะยังมีความคืบหน้าล่าสุดอยู่
+ */
+export function newestSave(
+  files: string[],
+  other: string | null,
+  db: GeneDb = geneDb,
+): SaveData | null {
+  const fromFiles = firstValidSave(files, db)
+  const fromOther = other ? parseSave(other, db) : null
+  if (!fromFiles) return fromOther
+  if (!fromOther) return fromFiles
+  return fromOther.savedAt > fromFiles.savedAt ? fromOther : fromFiles
+}

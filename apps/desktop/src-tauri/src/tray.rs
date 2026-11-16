@@ -86,7 +86,15 @@ pub fn build(app: &App) -> tauri::Result<()> {
         tray = tray.icon(icon.clone());
     }
     tray.on_menu_event(move |app, event| match event.id().as_ref() {
-        "quit" => app.exit(0),
+        "quit" => {
+            // ให้ frontend เซฟลงไฟล์ก่อน แล้วมันจะเรียก quit_now เอง — ถ้าไม่ตอบใน 2 วินาทีก็ปิดเลย
+            let _ = app.emit("tray", "quit");
+            let handle = app.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(2));
+                handle.exit(0);
+            });
+        }
         "quiet" => {
             let on = quiet.is_checked().unwrap_or(false);
             let _ = app.emit("tray", if on { "quiet-on" } else { "quiet-off" });

@@ -66,7 +66,7 @@ export function snapshot(): SaveData {
     farm,
   )
 }
-export const saveNow = (): void => storeSave(snapshot())
+export const saveNow = (): Promise<void> => storeSave(snapshot())
 
 export function restore(save: SaveData): void {
   for (const actor of [...pets]) removePet(actor)

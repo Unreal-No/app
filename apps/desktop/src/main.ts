@@ -4,6 +4,7 @@ import {
   onCursor,
   onPlatforms,
   onTray,
+  quitApp,
   setHitShapes,
   syncMenuState,
   type HitShape,
@@ -131,6 +132,10 @@ onTray((action) => {
     case 'panel':
       cyclePanel()
       break
+    case 'quit':
+      // เซฟให้เสร็จก่อนแล้วค่อยปิด (ฝั่ง Rust มีตัวจับเวลาสำรองถ้าตรงนี้ไม่ตอบ)
+      void saveNow().then(quitApp)
+      return
     default:
       if (action.startsWith('habitat-')) {
         const kind = action.slice('habitat-'.length)

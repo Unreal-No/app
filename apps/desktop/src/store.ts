@@ -3,8 +3,8 @@ import {
   createFounder,
   createMochi,
   createPet,
-  firstValidSave,
   geneDb,
+  newestSave,
   newPetId,
   parseSave,
   serializeSave,
@@ -33,11 +33,9 @@ const readLocal = (key: string): string | null => {
   }
 }
 
-/** โหลดเซฟล่าสุดที่อ่านได้: ไฟล์หลัก → สำเนาสำรอง → localStorage → เซฟรุ่นเก่า */
+/** โหลดเซฟที่ใหม่ที่สุดที่อ่านได้: ไฟล์ (หลัก → สำรอง) เทียบกับ localStorage แล้วค่อยลองเซฟรุ่นเก่า */
 export async function loadSave(): Promise<SaveData | null> {
-  const files = await readSaveFiles()
-  const local = readLocal(KEY)
-  const current = firstValidSave([...files, ...(local ? [local] : [])])
+  const current = newestSave(await readSaveFiles(), readLocal(KEY))
   if (current) return current
 
   const legacy = readLocal(LEGACY_KEY)
@@ -46,14 +44,15 @@ export async function loadSave(): Promise<SaveData | null> {
   return migrated
 }
 
-export function storeSave(save: SaveData): void {
+/** เขียนเซฟ — คืน Promise ที่จบเมื่อไฟล์ถูกเขียนแล้ว (ใช้รอก่อนปิดแอป) */
+export function storeSave(save: SaveData): Promise<void> {
   const json = serializeSave(save)
-  writeSaveFile(json)
   try {
     localStorage.setItem(KEY, json)
   } catch {
     // เซฟลง localStorage ไม่ได้ (เช่น เต็ม) — ไม่ให้เกมล่ม
   }
+  return writeSaveFile(json)
 }
 
 const NAMES = [

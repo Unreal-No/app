@@ -444,6 +444,10 @@ export class PetActor {
 
   dispose(): void {
     this.creature.dispose()
+    if (this.shadow) {
+      this.shadow.geometry.dispose()
+      ;(this.shadow.material as THREE.Material).dispose()
+    }
     this.holder.removeFromParent()
     this.bubble.dispose()
   }

@@ -33,6 +33,7 @@ export type TrayAction =
   | 'perch-off'
   | 'fshide-on'
   | 'fshide-off'
+  | 'quit'
   | 'habitat-none'
   | 'habitat-meadow'
   | 'habitat-cloud'
@@ -80,8 +81,18 @@ export async function readSaveFiles(): Promise<string[]> {
 }
 
 /** เขียนไฟล์เซฟ (ฝั่ง Rust เขียนแบบ atomic และหมุนสำเนาสำรองให้) */
-export function writeSaveFile(json: string): void {
-  if (isTauri) void invoke('store_save', { json }).catch(() => undefined)
+export async function writeSaveFile(json: string): Promise<void> {
+  if (!isTauri) return
+  try {
+    await invoke('store_save', { json })
+  } catch {
+    // เขียนไฟล์ไม่ได้ — ยังมีสำเนาใน localStorage และจะลองใหม่ในรอบเซฟถัดไป
+  }
+}
+
+/** ปิดแอป (เรียกหลังเซฟเสร็จ เมื่อผู้ใช้เลือก "ออก" จากเมนู tray) */
+export function quitApp(): void {
+  if (isTauri) void invoke('quit_now').catch(() => undefined)
 }
 
 /**

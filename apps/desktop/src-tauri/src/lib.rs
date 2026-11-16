@@ -109,6 +109,12 @@ fn set_keyboard_focus(window: WebviewWindow, on: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// ปิดแอปหลังจาก frontend เซฟเสร็จแล้ว
+#[tauri::command]
+fn quit_now(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -124,6 +130,7 @@ pub fn run() {
             get_desktop_layout,
             set_keyboard_focus,
             sync_menu_state,
+            quit_now,
             save::load_save,
             save::store_save
         ])

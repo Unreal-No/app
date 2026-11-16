@@ -11,6 +11,7 @@ import {
   firstValidSave,
   INCUBATION_SECONDS,
   MAX_ACTIVE_PETS,
+  newestSave,
   newPetId,
   parseSave,
   Rng,
@@ -227,6 +228,20 @@ describe('ไฟล์เซฟ', () => {
     const onlyFarm = parseSave(JSON.stringify({ v: 2, pets: [], farm: [farmed] }))!
     expect(onlyFarm.pets.map((p) => p.name)).toEqual(['ฟาร์ม'])
     expect(onlyFarm.farm).toEqual([])
+  })
+
+  it('newestSave เลือกเซฟที่ใหม่กว่าระหว่างไฟล์กับสำเนาอีกที่', () => {
+    const at = (savedAt: number, habitat: string) =>
+      serializeSave(createSave([mochi()], habitat, DEFAULT_SETTINGS, savedAt))
+    expect(newestSave([at(100, 'file')], at(200, 'local'))?.habitat).toBe('local')
+    expect(newestSave([at(300, 'file')], at(200, 'local'))?.habitat).toBe('file')
+    // เวลาเท่ากัน → ใช้ไฟล์
+    expect(newestSave([at(200, 'file')], at(200, 'local'))?.habitat).toBe('file')
+    // ไฟล์หลักเสีย → สำเนาสำรองยังถูกเทียบกับสำเนาอีกที่
+    expect(newestSave(['{broken', at(150, 'backup')], at(120, 'local'))?.habitat).toBe('backup')
+    expect(newestSave(['{broken'], at(120, 'local'))?.habitat).toBe('local')
+    expect(newestSave([at(50, 'file')], 'garbage')?.habitat).toBe('file')
+    expect(newestSave([], null)).toBeNull()
   })
 
   it('firstValidSave ข้ามไฟล์ที่เสียไปใช้สำเนาสำรองที่อ่านได้', () => {
