@@ -9,11 +9,13 @@
 //! - เปิดพร้อม Windows (เลือกได้) และกันเปิดซ้ำ
 //! - แจ้งเตือนนัดด้วย Windows toast เมื่อหน้าต่างสัตว์ถูกซ่อน และบอกเวลาที่ผู้ใช้ไม่ได้แตะเครื่อง
 //! - ดึงลิงก์ปฏิทิน ICS (WebView ดึงเองไม่ได้เพราะ CORS)
+//! - คุยกับสัตว์ด้วย AI: เก็บ API key ใน Windows Credential Manager และส่งคำขอ (key ไม่ออกจากฝั่งนี้)
 //! - ไฟล์เซฟในโฟลเดอร์ข้อมูลของแอป (เขียนแบบ atomic + สำเนาสำรองหมุนเวียน)
 
 mod alarms;
 mod calendar;
 mod idle;
+mod llm;
 mod overlay;
 mod platforms;
 mod save;
@@ -141,6 +143,11 @@ pub fn run() {
             alarms::set_alarms,
             idle::idle_seconds,
             calendar::fetch_calendar,
+            llm::set_api_key,
+            llm::has_api_key,
+            llm::clear_api_key,
+            llm::claude_messages,
+            llm::ollama_chat,
             save::load_save,
             save::store_save
         ])

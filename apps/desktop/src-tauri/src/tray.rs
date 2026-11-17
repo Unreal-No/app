@@ -34,6 +34,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let assistant =
         MenuItemBuilder::with_id("assistant", "ผู้ช่วย: เตือน · งาน · โฟกัส · สุขภาพ").build(app)?;
     let focus = MenuItemBuilder::with_id("focus-start", "เริ่มโฟกัส").build(app)?;
+    let chat = MenuItemBuilder::with_id("chat", "คุยกับสัตว์").build(app)?;
     let quiet = CheckMenuItemBuilder::with_id("quiet", "โหมดเงียบ (ไม่รบกวน)")
         .checked(false)
         .build(app)?;
@@ -64,7 +65,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let quit = MenuItemBuilder::with_id("quit", "ออกจาก Mochimon").build(app)?;
 
     let menu = MenuBuilder::new(app)
-        .items(&[&assistant, &focus])
+        .items(&[&chat, &assistant, &focus])
         .separator()
         .items(&[&call, &feed, &play, &panel])
         .separator()
@@ -144,7 +145,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
             }
         }
         id @ ("call" | "feed" | "play" | "panel" | "reroll" | "farm-recall" | "assistant"
-        | "focus-start") => {
+        | "chat" | "focus-start") => {
             let _ = app.emit("tray", id);
         }
         id if id.starts_with("habitat-") => {
