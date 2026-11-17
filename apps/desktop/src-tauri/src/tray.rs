@@ -31,6 +31,9 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let play = MenuItemBuilder::with_id("play", "เล่นด้วยกัน").build(app)?;
     // ทางเข้าแผงดูแลอีกทาง (ปกติคลิกขวาที่ตัวสัตว์)
     let panel = MenuItemBuilder::with_id("panel", "เปิดแผงดูแล (ตัวถัดไป)").build(app)?;
+    let assistant =
+        MenuItemBuilder::with_id("assistant", "ผู้ช่วย: เตือน · งาน · โฟกัส · สุขภาพ").build(app)?;
+    let focus = MenuItemBuilder::with_id("focus-start", "เริ่มโฟกัส").build(app)?;
     let quiet = CheckMenuItemBuilder::with_id("quiet", "โหมดเงียบ (ไม่รบกวน)")
         .checked(false)
         .build(app)?;
@@ -61,6 +64,8 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let quit = MenuItemBuilder::with_id("quit", "ออกจาก Mochimon").build(app)?;
 
     let menu = MenuBuilder::new(app)
+        .items(&[&assistant, &focus])
+        .separator()
         .items(&[&call, &feed, &play, &panel])
         .separator()
         .items(&[&reroll, &recall])
@@ -138,7 +143,8 @@ pub fn build(app: &App) -> tauri::Result<()> {
                 };
             }
         }
-        id @ ("call" | "feed" | "play" | "panel" | "reroll" | "farm-recall") => {
+        id @ ("call" | "feed" | "play" | "panel" | "reroll" | "farm-recall" | "assistant"
+        | "focus-start") => {
             let _ = app.emit("tray", id);
         }
         id if id.starts_with("habitat-") => {

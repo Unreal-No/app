@@ -7,8 +7,11 @@
 //! - เมนู system tray
 //! - รายการหน้าต่างของโปรแกรมอื่น (ให้สัตว์เกาะขอบ) และซ่อนสัตว์เมื่อมีแอปเต็มจอ
 //! - เปิดพร้อม Windows (เลือกได้) และกันเปิดซ้ำ
+//! - แจ้งเตือนนัดด้วย Windows toast เมื่อหน้าต่างสัตว์ถูกซ่อน และบอกเวลาที่ผู้ใช้ไม่ได้แตะเครื่อง
 //! - ไฟล์เซฟในโฟลเดอร์ข้อมูลของแอป (เขียนแบบ atomic + สำเนาสำรองหมุนเวียน)
 
+mod alarms;
+mod idle;
 mod overlay;
 mod platforms;
 mod save;
@@ -124,13 +127,17 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_notification::init())
         .manage(OverlayState::default())
+        .manage(alarms::AlarmState::default())
         .invoke_handler(tauri::generate_handler![
             set_hit_shapes,
             get_desktop_layout,
             set_keyboard_focus,
             sync_menu_state,
             quit_now,
+            alarms::set_alarms,
+            idle::idle_seconds,
             save::load_save,
             save::store_save
         ])
@@ -144,6 +151,7 @@ pub fn run() {
             window.show()?;
             overlay::spawn_cursor_poll(app.handle().clone());
             platforms::spawn(app.handle().clone());
+            alarms::spawn(app.handle().clone());
             tray::build(app)?;
             Ok(())
         })
