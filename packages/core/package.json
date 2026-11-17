@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@mochimon/data": "workspace:*"
+    "@mochimon/data": "workspace:*",
+    "ical.js": "2.2.1"
   }
 }

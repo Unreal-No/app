@@ -1,5 +1,11 @@
 import { clamp } from '../rng'
 import {
+  MAX_CALENDAR_EVENTS,
+  type CalendarAck,
+  type CalendarEvent,
+  type CalendarSource,
+} from './calendar'
+import {
   createFocus,
   DEFAULT_FOCUS_SETTINGS,
   type FocusPhase,
@@ -30,6 +36,14 @@ export interface CompanionState {
   focusSettings: FocusSettings
   wellbeing: WellbeingState
   wellbeingSettings: WellbeingSettings
+  /** ปฏิทินจากลิงก์ ICS */
+  calendars: CalendarSource[]
+  /** แคชนัดจากทุกปฏิทิน (ใช้ต่อได้ตอนออฟไลน์) */
+  calendarEvents: CalendarEvent[]
+  /** สิ่งที่ผู้ใช้ตอบป้ายนัดในปฏิทิน (รับทราบ/เลื่อน) ต่อรอบ */
+  calendarAcks: Record<string, CalendarAck>
+  /** ระหว่างประชุมให้สัตว์เงียบ และเลื่อนเตือนสุขภาพ */
+  meetingQuiet: boolean
   /** เวลาที่ตรวจการแจ้งเตือนครั้งล่าสุด — เปิดแอปใหม่จะได้รู้ว่าพลาดอะไรไประหว่างปิด */
   lastCheck: number
 }
@@ -42,6 +56,10 @@ export function createCompanion(now: number): CompanionState {
     focusSettings: { ...DEFAULT_FOCUS_SETTINGS },
     wellbeing: createWellbeing(now),
     wellbeingSettings: { ...DEFAULT_WELLBEING_SETTINGS },
+    calendars: [],
+    calendarEvents: [],
+    calendarAcks: {},
+    meetingQuiet: true,
     lastCheck: now,
   }
 }
@@ -98,6 +116,56 @@ function repairTodo(raw: unknown): Todo | null {
     createdAt: finite(raw.createdAt) ? raw.createdAt : 0,
     ...(finite(raw.doneAt) ? { doneAt: raw.doneAt } : {}),
   }
+}
+
+function repairCalendar(raw: unknown): CalendarSource | null {
+  if (!isObject(raw)) return null
+  const id = str(raw.id, 64)
+  const url = str(raw.url, 2000)
+  if (!id || !url || !/^https:\/\//i.test(url)) return null
+  return {
+    id,
+    name: str(raw.name, 40) ?? 'ปฏิทิน',
+    url,
+    enabled: raw.enabled !== false,
+    ...(finite(raw.lastSync) ? { lastSync: raw.lastSync } : {}),
+    ...(str(raw.lastError) ? { lastError: str(raw.lastError)! } : {}),
+  }
+}
+
+function repairEvent(raw: unknown): CalendarEvent | null {
+  if (!isObject(raw)) return null
+  const id = str(raw.id, 400)
+  const calendarId = str(raw.calendarId, 64)
+  const uid = str(raw.uid, 300)
+  const title = str(raw.title)
+  if (!id || !calendarId || !uid || !title || !finite(raw.start) || !finite(raw.end)) return null
+  const location = str(raw.location)
+  return {
+    id,
+    calendarId,
+    uid,
+    title,
+    start: raw.start,
+    end: Math.max(raw.start, raw.end),
+    allDay: raw.allDay === true,
+    ...(location ? { location } : {}),
+    busy: raw.busy !== false,
+  }
+}
+
+function repairAcks(raw: unknown): Record<string, CalendarAck> {
+  const acks: Record<string, CalendarAck> = {}
+  if (!isObject(raw)) return acks
+  for (const [id, value] of Object.entries(raw).slice(0, MAX_ITEMS)) {
+    if (!isObject(value) || !finite(value.start)) continue
+    acks[id] = {
+      start: value.start,
+      ...(value.done === true ? { done: true } : {}),
+      ...(finite(value.snoozedUntil) ? { snoozedUntil: value.snoozedUntil } : {}),
+    }
+  }
+  return acks
 }
 
 /** รายการที่ไม่ซ้ำรหัส (ตัวที่ซ่อมไม่ได้ถูกทิ้งทีละรายการ ไม่ทำให้ทั้งเซฟเสีย) */
@@ -176,6 +244,12 @@ export function repairCompanion(raw: unknown, now: number): CompanionState {
       nightKey: str(wellRaw.nightKey, 16),
     },
     wellbeingSettings: repairFlags(raw.wellbeingSettings, DEFAULT_WELLBEING_SETTINGS),
+    calendars: repairList(raw.calendars, repairCalendar).slice(0, 10),
+    calendarEvents: repairList(raw.calendarEvents, repairEvent)
+      .sort((a, b) => a.start - b.start)
+      .slice(0, MAX_CALENDAR_EVENTS),
+    calendarAcks: repairAcks(raw.calendarAcks),
+    meetingQuiet: raw.meetingQuiet !== false,
     lastCheck: finite(raw.lastCheck) ? Math.min(raw.lastCheck, now) : now,
   }
 }
