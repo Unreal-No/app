@@ -515,3 +515,50 @@ label.item-text {
 .panel .tabs button {
   font-size: 12px;
 }
+
+/* ───────── แผงคุยกับสัตว์ ───────── */
+.panel.chat {
+  width: 290px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+}
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 6px 0;
+}
+.chat-line {
+  max-width: 85%;
+  padding: 4px 10px;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.chat-line.user {
+  align-self: flex-end;
+  background: #e3f1fb;
+}
+.chat-line.pet {
+  align-self: flex-start;
+  background: #f3e9f7;
+}
+.chat-line.thinking {
+  color: #7a6a84;
+  letter-spacing: 3px;
+}
+.chat-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+  padding-top: 8px;
+  border-top: 2px dotted #d9cbe2;
+}
+.toggle input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: #b79ad6;
+}

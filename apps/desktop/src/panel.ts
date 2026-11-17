@@ -24,6 +24,7 @@ import {
 import type { PetActor } from './pet'
 import { button, el, rectOf } from './ui'
 import { openAssistant } from './assistant'
+import { openChat } from './chatPanel'
 import { pickName } from './store'
 import { NEED_TH, STAGE_TH } from './text'
 import { cursor, layout, rng, uiLayer } from './world'
@@ -251,6 +252,13 @@ function renderCare(target: PetActor): void {
         mode = 'pair'
         signature = ''
         render()
+      }),
+    )
+  if (stage !== 'egg')
+    footer.append(
+      button('💬 คุย', () => {
+        closePanel()
+        openChat(target)
       }),
     )
   footer.append(

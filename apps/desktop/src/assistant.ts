@@ -41,7 +41,7 @@ import {
   syncCalendar,
 } from './calendarSync'
 import { companion } from './game'
-import { button, el, rectOf } from './ui'
+import { bindKeyboard, button, el, rectOf, type KeyboardScope } from './ui'
 import { layout, mode, uiLayer } from './world'
 
 /**
@@ -71,7 +71,6 @@ uiLayer.append(root)
 
 let tab: AssistantTab = 'reminders'
 let draft = ''
-let typing = false
 let signature = ''
 let timerLabel: HTMLElement | null = null
 
@@ -85,8 +84,8 @@ export function openAssistant(next: AssistantTab = tab): void {
 }
 
 export function closeAssistant(): void {
-  if (typing) setKeyboardFocus(false)
-  typing = false
+  if (keyboard.typing) setKeyboardFocus(false)
+  keyboard.typing = false
   root.hidden = true
   mode.reserveRight = 0
 }
@@ -98,7 +97,7 @@ export function toggleAssistant(): void {
 
 onCompanionChange(() => {
   signature = ''
-  if (assistantOpen() && !typing) render()
+  if (assistantOpen() && !keyboard.typing) render()
 })
 
 function header(): HTMLElement {
@@ -123,41 +122,14 @@ function header(): HTMLElement {
   return wrap
 }
 
-/**
- * หน้าต่างสัตว์ปกติไม่รับคีย์บอร์ด (ไม่แย่งงานของผู้ใช้) — ขอรับชั่วคราวตอนกดช่องพิมพ์
- * และคืนเมื่อออกจากช่องพิมพ์ทุกช่องของแผงแล้ว (ย้ายช่องภายในแผงไม่ปล่อย)
- */
-function typeable(input: HTMLInputElement, onEnter: () => void): void {
-  let pressedAt = 0
-  let blurredAt = 0
-  input.addEventListener('pointerdown', () => {
-    pressedAt = performance.now()
-    if (!typing) {
-      typing = true
-      setKeyboardFocus(true)
-    }
-    // รอให้หน้าต่างรับคีย์บอร์ดก่อน — แต่ถ้าผู้ใช้ออกจากช่องไปแล้วระหว่างรอ ไม่ดึงกลับมา
-    setTimeout(() => {
-      if (blurredAt < pressedAt && input.isConnected && document.activeElement !== input)
-        input.focus()
-    }, 60)
-  })
-  input.addEventListener('keydown', (e) => {
-    e.stopPropagation()
-    if (e.key === 'Enter') onEnter()
-    else if (e.key === 'Escape') input.blur()
-  })
-  input.addEventListener('blur', () => {
-    blurredAt = performance.now()
-    setTimeout(() => {
-      const active = document.activeElement
-      if (active instanceof HTMLInputElement && root.contains(active)) return
-      typing = false
-      setKeyboardFocus(false)
-      if (signature === '') render()
-    }, 120)
-  })
+const keyboard: KeyboardScope = {
+  typing: false,
+  onRelease: () => {
+    if (signature === '') render()
+  },
 }
+const typeable = (input: HTMLInputElement, onEnter: () => void): void =>
+  bindKeyboard(input, root, keyboard, onEnter)
 
 /** ช่องพิมพ์ด่วน + ผลแปลงให้ยืนยันก่อนบันทึก */
 function quickInput(asTodo: boolean): HTMLElement {
@@ -183,7 +155,7 @@ function quickInput(asTodo: boolean): HTMLElement {
     input.value = ''
     showPreview()
     signature = ''
-    if (!typing) render()
+    if (!keyboard.typing) render()
   }
   typeable(input, submit)
   input.addEventListener('input', () => {
@@ -469,7 +441,7 @@ function renderHealth(): void {
 }
 
 function render(): void {
-  if (root.hidden || typing) return
+  if (root.hidden || keyboard.typing) return
   const now = Date.now()
   const next = JSON.stringify([
     tab,

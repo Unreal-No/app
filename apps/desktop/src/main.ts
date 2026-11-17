@@ -37,6 +37,7 @@ import {
 } from './panel'
 import type { PetActor } from './pet'
 import { signRect, updateSigns } from './signs'
+import { chatRect, openChat, updateChatPanel } from './chatPanel'
 import { firstPet, loadSave } from './store'
 import {
   applyLayout,
@@ -145,6 +146,9 @@ onTray((action) => {
     case 'assistant':
       toggleAssistant()
       return
+    case 'chat':
+      openChat()
+      return
     case 'focus-start':
       startFocusSession()
       return
@@ -177,7 +181,7 @@ function reportHitShapes(): void {
         return { x: Math.round(hit.x), y: Math.round(hit.y), r: Math.round(hit.r) }
       })
   if (!press?.dragging) {
-    for (const rect of [panelRect(), assistantRect(), signRect(), focusChipRect()])
+    for (const rect of [panelRect(), assistantRect(), signRect(), focusChipRect(), chatRect()])
       if (rect) shapes.push(rect)
   }
   const key = JSON.stringify(shapes)
@@ -218,6 +222,7 @@ function frame(now: number): void {
   tickAssistant()
   updateSigns()
   updateAssistant()
+  updateChatPanel()
   reportHitShapes()
   canvas.style.cursor = press?.dragging
     ? 'grabbing'

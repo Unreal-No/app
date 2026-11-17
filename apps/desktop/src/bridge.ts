@@ -35,6 +35,7 @@ export type TrayAction =
   | 'fshide-off'
   | 'quit'
   | 'assistant'
+  | 'chat'
   | 'focus-start'
   | 'habitat-none'
   | 'habitat-meadow'
@@ -170,4 +171,86 @@ export async function fetchCalendar(url: string): Promise<string> {
   if (!/^\s*BEGIN:VCALENDAR/i.test(text.replace(/^\uFEFF/, '')))
     throw new Error('ลิงก์นี้ไม่ใช่ไฟล์ปฏิทิน (ICS)')
   return text
+}
+
+// ───────── คุยกับสัตว์ด้วย AI ─────────
+/**
+ * ในแอปจริง API key อยู่ในที่เก็บรหัสของ Windows ฝั่ง Rust และคำขอถูกส่งจากฝั่งนั้น
+ * ในเบราว์เซอร์ (ตอนพัฒนา/ทดสอบ) เก็บ key ไว้ในหน่วยความจำเท่านั้น ไม่บันทึกลงที่ใด
+ */
+let browserKey: string | null = null
+
+export async function setApiKey(key: string): Promise<void> {
+  if (isTauri) {
+    try {
+      await invoke('set_api_key', { key })
+      return
+    } catch (error) {
+      throw new Error(typeof error === 'string' ? error : 'บันทึก API key ไม่สำเร็จ')
+    }
+  }
+  const trimmed = key.trim()
+  if (!/^sk-ant-\S{13,}$/.test(trimmed))
+    throw new Error('API key ของ Anthropic ขึ้นต้นด้วย sk-ant- — ลองคัดลอกใหม่จาก Claude Console')
+  browserKey = trimmed
+}
+
+export async function hasApiKey(): Promise<boolean> {
+  if (isTauri) return invoke<boolean>('has_api_key').catch(() => false)
+  return browserKey !== null
+}
+
+export async function clearApiKey(): Promise<void> {
+  if (isTauri) await invoke('clear_api_key').catch(() => undefined)
+  else browserKey = null
+}
+
+const asError = (error: unknown, fallback: string): Error =>
+  new Error(typeof error === 'string' ? error : error instanceof Error ? error.message : fallback)
+
+/** ส่งคำขอไปยัง Messages API (key ใส่ให้ฝั่ง Rust) — คืนเนื้อหาคำตอบทั้งก้อน */
+export async function claudeMessages(body: object, betas: string[]): Promise<unknown> {
+  if (isTauri) {
+    try {
+      return await invoke('claude_messages', { body, betas })
+    } catch (error) {
+      throw asError(error, 'คุยกับ Claude ไม่สำเร็จ')
+    }
+  }
+  if (!browserKey) throw new Error('ยังไม่ได้ใส่ API key — เปิดการตั้งค่าแชตแล้วใส่ key ก่อน')
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': browserKey,
+      'anthropic-version': '2026-10-21',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      ...(betas.length ? { 'anthropic-beta': betas.join(',') } : {}),
+    },
+    body: JSON.stringify(body),
+  }).catch(() => {
+    throw new Error('เชื่อมต่อ Anthropic ไม่ได้')
+  })
+  if (!response.ok) throw new Error(`คำขอไม่สำเร็จ (สถานะ ${response.status})`)
+  return response.json()
+}
+
+/** คุยผ่าน Ollama ในเครื่อง */
+export async function ollamaChat(baseUrl: string, body: object): Promise<unknown> {
+  if (isTauri) {
+    try {
+      return await invoke('ollama_chat', { baseUrl, body })
+    } catch (error) {
+      throw asError(error, 'คุยกับ Ollama ไม่สำเร็จ')
+    }
+  }
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/chat`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  }).catch(() => {
+    throw new Error('ต่อ Ollama ในเครื่องไม่ได้ — เปิดโปรแกรม Ollama แล้วลองใหม่')
+  })
+  if (!response.ok) throw new Error(`Ollama ตอบผิดพลาด (สถานะ ${response.status})`)
+  return response.json()
 }
