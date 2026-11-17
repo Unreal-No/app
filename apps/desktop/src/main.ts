@@ -44,6 +44,7 @@ import {
   canvas,
   cursor,
   layout,
+  mode,
   renderer,
   scene,
   setHabitat,
@@ -238,6 +239,7 @@ async function start(): Promise<void> {
   else addPet(firstPet()).say('สวัสดี! โมจิเอง', 4)
   saveNow()
   syncMenuState(settings)
+  assist.startAssistant()
 
   // ความละเอียดจอ/ขนาด Taskbar อาจเปลี่ยนระหว่างใช้งาน
   setInterval(() => void getLayout().then(applyLayout), 5000)
@@ -256,6 +258,7 @@ async function start(): Promise<void> {
       assist,
       companion: () => companion,
       setCompanion,
+      mode,
     },
   })
   requestAnimationFrame(frame)

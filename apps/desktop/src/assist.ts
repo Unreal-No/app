@@ -31,6 +31,7 @@ import {
   type WellbeingSettings,
 } from '@mochimon/core'
 import { getIdleSeconds, setAlarms, type Alarm } from './bridge'
+import { calendarAlarms, syncAllCalendars, tickCalendars } from './calendarSync'
 import { companion, pets, saveNow, setCompanion } from './game'
 import { dismissSignsWhere, messenger, showSign, signCarrier } from './signs'
 import { el, rectOf } from './ui'
@@ -44,6 +45,14 @@ import { idleSeconds, layout, mode, presence, uiLayer } from './world'
 // ───────── การเปลี่ยนข้อมูล ─────────
 const listeners = new Set<() => void>()
 export const onCompanionChange = (callback: () => void): void => void listeners.add(callback)
+
+/** เปลี่ยนข้อมูลผู้ช่วย แล้วแจ้งแผง/ฝั่ง Rust และเซฟ */
+export function updateCompanion(
+  change: (state: CompanionState) => CompanionState,
+  save = true,
+): void {
+  update(change, save)
+}
 
 function update(change: (state: CompanionState) => CompanionState, save = true): void {
   setCompanion(change(companion))
@@ -276,6 +285,7 @@ function syncAlarms(): void {
   const alarms: Alarm[] = companion.reminders
     .filter((r) => !r.done)
     .map((r) => ({ id: r.id, atMs: effectiveAt(r), title: 'Mochimon — ถึงเวลาแล้ว', body: r.text }))
+  alarms.push(...calendarAlarms(now))
   const { focus } = companion
   if (focus.endsAt !== null && focus.endsAt > now)
     alarms.push({
@@ -292,6 +302,11 @@ function syncAlarms(): void {
 
 // ───────── วงรอบ ─────────
 let lastTick = 0
+
+/** เริ่มต้นตอนเปิดแอป: ซิงก์ปฏิทินทุกอันทันที */
+export function startAssistant(): void {
+  syncAllCalendars()
+}
 
 /** เรียกทุกเฟรม — ทำงานจริงวินาทีละครั้งตามนาฬิกาจริง */
 export function tickAssistant(): void {
@@ -318,6 +333,7 @@ export function tickAssistant(): void {
       pet.say(`อีก ${alert.minutes} นาที: ${reminder.text}`, 6)
   }
   for (const reminder of overdue(c.reminders, now)) reminderSign(reminder, now)
+  const inMeeting = tickCalendars(c.lastCheck, now)
   c = { ...c, lastCheck: now }
 
   // โฟกัส
@@ -339,8 +355,11 @@ export function tickAssistant(): void {
     now,
     dtSec: Math.min(gap, 5),
     idleSec: gap > 120 ? AWAY_RESET : idleSeconds(),
-    focusing: mode.focusing,
+    // ระหว่างโฟกัส/ประชุม: เลื่อนดื่มน้ำ/ยืดเส้นไปทีหลัง
+    focusing: mode.focusing || inMeeting,
   })
+  // ระหว่างประชุมไม่ขึ้นป้ายพักสายตา (จะกวนหน้าจอที่กำลังแชร์อยู่)
+  if (inMeeting) well.prompts = well.prompts.filter((p) => p !== 'eyes')
   if (well.prompts.length > 0) changed = true
   c = { ...c, wellbeing: well.state }
 

@@ -245,6 +245,8 @@ body {
 /* ───────── แผงผู้ช่วย ───────── */
 .panel.assistant {
   width: 300px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
 }
 .tabs {
   display: flex;
@@ -491,4 +493,25 @@ label.item-text {
   font-weight: 700;
   color: #4a3b52;
   font-variant-numeric: tabular-nums;
+}
+
+/* ───────── ปฏิทิน ───────── */
+.calendar-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.quick-preview.error {
+  color: #d9536f;
+}
+.items li.now .item-sub {
+  color: #4f9e6b;
+  font-weight: 600;
+}
+.agenda {
+  max-height: 160px;
+}
+.panel .tabs button {
+  font-size: 12px;
 }

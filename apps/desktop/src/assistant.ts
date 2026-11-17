@@ -1,5 +1,10 @@
 import {
+  DAY,
   describeRepeat,
+  formatClock,
+  startOfDay,
+  upcomingEvents,
+  type CalendarEvent,
   effectiveAt,
   focusRemaining,
   formatCountdown,
@@ -26,6 +31,15 @@ import {
   toggleTodo,
 } from './assist'
 import { setKeyboardFocus } from './bridge'
+import {
+  addCalendar,
+  calendarLabel,
+  isSyncing,
+  removeCalendar,
+  setCalendarEnabled,
+  setMeetingQuiet,
+  syncCalendar,
+} from './calendarSync'
 import { companion } from './game'
 import { button, el, rectOf } from './ui'
 import { layout, mode, uiLayer } from './world'
@@ -34,11 +48,12 @@ import { layout, mode, uiLayer } from './world'
  * แผงผู้ช่วย: เตือน · งาน · โฟกัส · สุขภาพ
  * เปิดจากเมนู tray หรือปุ่มในแผงดูแล ลอยอยู่มุมขวาล่างเหนือ Taskbar
  */
-export type AssistantTab = 'reminders' | 'todos' | 'focus' | 'health'
+export type AssistantTab = 'reminders' | 'todos' | 'calendar' | 'focus' | 'health'
 
 const TABS: { id: AssistantTab; label: string }[] = [
   { id: 'reminders', label: 'เตือน' },
   { id: 'todos', label: 'งาน' },
+  { id: 'calendar', label: 'ปฏิทิน' },
   { id: 'focus', label: 'โฟกัส' },
   { id: 'health', label: 'สุขภาพ' },
 ]
@@ -108,6 +123,42 @@ function header(): HTMLElement {
   return wrap
 }
 
+/**
+ * หน้าต่างสัตว์ปกติไม่รับคีย์บอร์ด (ไม่แย่งงานของผู้ใช้) — ขอรับชั่วคราวตอนกดช่องพิมพ์
+ * และคืนเมื่อออกจากช่องพิมพ์ทุกช่องของแผงแล้ว (ย้ายช่องภายในแผงไม่ปล่อย)
+ */
+function typeable(input: HTMLInputElement, onEnter: () => void): void {
+  let pressedAt = 0
+  let blurredAt = 0
+  input.addEventListener('pointerdown', () => {
+    pressedAt = performance.now()
+    if (!typing) {
+      typing = true
+      setKeyboardFocus(true)
+    }
+    // รอให้หน้าต่างรับคีย์บอร์ดก่อน — แต่ถ้าผู้ใช้ออกจากช่องไปแล้วระหว่างรอ ไม่ดึงกลับมา
+    setTimeout(() => {
+      if (blurredAt < pressedAt && input.isConnected && document.activeElement !== input)
+        input.focus()
+    }, 60)
+  })
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation()
+    if (e.key === 'Enter') onEnter()
+    else if (e.key === 'Escape') input.blur()
+  })
+  input.addEventListener('blur', () => {
+    blurredAt = performance.now()
+    setTimeout(() => {
+      const active = document.activeElement
+      if (active instanceof HTMLInputElement && root.contains(active)) return
+      typing = false
+      setKeyboardFocus(false)
+      if (signature === '') render()
+    }, 120)
+  })
+}
+
 /** ช่องพิมพ์ด่วน + ผลแปลงให้ยืนยันก่อนบันทึก */
 function quickInput(asTodo: boolean): HTMLElement {
   const box = el('div', 'quick')
@@ -134,26 +185,10 @@ function quickInput(asTodo: boolean): HTMLElement {
     signature = ''
     if (!typing) render()
   }
-  // หน้าต่างสัตว์ปกติไม่รับคีย์บอร์ด (ไม่แย่งงานของผู้ใช้) — ขอรับชั่วคราวตอนกดช่องพิมพ์
-  input.addEventListener('pointerdown', () => {
-    if (typing) return
-    typing = true
-    setKeyboardFocus(true)
-    setTimeout(() => input.focus(), 60)
-  })
+  typeable(input, submit)
   input.addEventListener('input', () => {
     draft = input.value
     showPreview()
-  })
-  input.addEventListener('keydown', (e) => {
-    e.stopPropagation()
-    if (e.key === 'Enter') submit()
-    else if (e.key === 'Escape') input.blur()
-  })
-  input.addEventListener('blur', () => {
-    typing = false
-    setKeyboardFocus(false)
-    if (signature === '') render()
   })
   const row = el('div', 'quick-row')
   row.append(input, add)
@@ -218,6 +253,135 @@ function renderTodos(): void {
     footer.append(button('ล้างงานที่เสร็จแล้ว', clearDoneTodos))
     root.append(footer)
   }
+}
+
+// ───────── ปฏิทิน ─────────
+let calName = ''
+let calUrl = ''
+let calMessage = ''
+
+function calendarForm(): HTMLElement {
+  const box = el('div', 'quick calendar-form')
+  const name = el('input', 'quick-input')
+  name.placeholder = 'ชื่อ เช่น งาน'
+  name.maxLength = 40
+  name.value = calName
+  const url = el('input', 'quick-input')
+  url.placeholder = 'วางลิงก์ปฏิทิน (ICS) ที่นี่'
+  url.value = calUrl
+  url.spellcheck = false
+  const message = el('div', 'panel-hint quick-preview', calMessage)
+  const submit = (): void => {
+    const error = addCalendar(calName, calUrl)
+    if (error) {
+      calMessage = error
+      message.textContent = error
+      message.classList.add('error')
+      return
+    }
+    calName = ''
+    calUrl = ''
+    calMessage = 'เพิ่มแล้ว กำลังดึงนัด…'
+    name.value = ''
+    url.value = ''
+    message.textContent = calMessage
+    message.classList.remove('error')
+  }
+  typeable(name, submit)
+  typeable(url, submit)
+  name.addEventListener('input', () => (calName = name.value))
+  url.addEventListener('input', () => (calUrl = url.value))
+  const row = el('div', 'quick-row')
+  row.append(url, button('เพิ่ม', submit, 'primary'))
+  box.append(name, row, message)
+  return box
+}
+
+const eventTime = (e: CalendarEvent): string =>
+  e.allDay ? 'ทั้งวัน' : `${formatClock(e.start)}–${formatClock(e.end)}`
+
+function renderCalendar(): void {
+  const { calendars, calendarEvents, meetingQuiet } = companion
+  const now = Date.now()
+  // ข้อความ "กำลังดึงนัด" หมดหน้าที่เมื่อซิงก์เสร็จ (สถานะจริงแสดงในรายการแล้ว)
+  if (calMessage.startsWith('เพิ่มแล้ว') && !calendars.some((c) => isSyncing(c.id))) calMessage = ''
+
+  if (calendars.length > 0) {
+    const list = el('ul', 'items')
+    for (const source of calendars) {
+      const item = el('li', source.lastError ? 'late' : '')
+      const text = el('div', 'item-text')
+      const status = isSyncing(source.id)
+        ? 'กำลังดึงนัด…'
+        : source.lastError
+          ? source.lastError
+          : source.lastSync
+            ? `ซิงก์ล่าสุด ${formatWhen(source.lastSync, now)}`
+            : 'ยังไม่ได้ซิงก์'
+      text.append(
+        el('div', '', `${source.name}`),
+        el('div', 'item-sub', `${calendarLabel(source)} · ${status}`),
+      )
+      const on = el('input')
+      on.type = 'checkbox'
+      on.checked = source.enabled
+      on.title = 'เปิด/ปิดปฏิทินนี้'
+      on.addEventListener('change', () => setCalendarEnabled(source.id, on.checked))
+      const refresh = button('↻', () => void syncCalendar(source.id), 'panel-icon')
+      refresh.title = 'ดึงนัดใหม่ตอนนี้'
+      const remove = button('×', () => removeCalendar(source.id), 'panel-icon')
+      remove.title = 'ลบปฏิทินนี้'
+      item.append(on, text, refresh, remove)
+      list.append(item)
+    }
+    root.append(list)
+
+    // นัดวันนี้-พรุ่งนี้
+    const soon = upcomingEvents(calendarEvents, now).filter(
+      (e) => e.start < startOfDay(now) + 2 * DAY,
+    )
+    const agenda = el('ul', 'items agenda')
+    for (const e of soon.slice(0, 8)) {
+      const item = el('li', e.start <= now ? 'now' : '')
+      const text = el('div', 'item-text')
+      const day = e.start < startOfDay(now) + DAY ? 'วันนี้' : 'พรุ่งนี้'
+      text.append(
+        el('div', '', e.title),
+        el('div', 'item-sub', [`${day} ${eventTime(e)}`, e.location].filter(Boolean).join(' · ')),
+      )
+      item.append(text)
+      agenda.append(item)
+    }
+    root.append(el('div', 'panel-status', soon.length ? 'นัดวันนี้–พรุ่งนี้' : 'วันนี้–พรุ่งนี้ไม่มีนัด'))
+    if (soon.length) root.append(agenda)
+
+    const quiet = el('label', 'toggle')
+    const box = el('input')
+    box.type = 'checkbox'
+    box.checked = meetingQuiet
+    box.addEventListener('change', () => setMeetingQuiet(box.checked))
+    const text = el('div')
+    text.append(
+      el('div', '', 'เงียบระหว่างประชุม'),
+      el('div', 'item-sub', 'สัตว์ไม่พูดเล่น และเลื่อนเตือนสุขภาพไปหลังประชุม'),
+    )
+    quiet.append(box, text)
+    root.append(quiet)
+  }
+
+  if (calendars.length < 10) root.append(calendarForm())
+
+  const help = el('details', 'panel-genes')
+  help.open = calendars.length === 0
+  help.append(el('summary', '', 'หาลิงก์ปฏิทินได้ที่ไหน?'))
+  for (const line of [
+    'Google: เปิด Google Calendar บนเว็บ → ⚙ การตั้งค่า → เลือกปฏิทิน → “ผสานรวมปฏิทิน” → คัดลอก “ที่อยู่ลับในรูปแบบ iCal”',
+    'Outlook: Outlook บนเว็บ → ⚙ การตั้งค่า → ปฏิทิน → ปฏิทินที่แชร์ → เผยแพร่ปฏิทิน → คัดลอกลิงก์ ICS',
+    'ลิงก์นี้เป็นความลับ ใครมีลิงก์ก็อ่านปฏิทินได้ — Mochimon เก็บไว้ในเครื่องนี้เท่านั้น และอ่านอย่างเดียว',
+    'Google อาจอัปเดตลิงก์ช้าหลายชั่วโมงหลังแก้นัด',
+  ])
+    help.append(el('div', 'panel-hint', line))
+  root.append(help)
 }
 
 function minutesSelect(
@@ -317,6 +481,12 @@ function render(): void {
     companion.focusSettings,
     companion.wellbeingSettings,
     companion.wellbeing.cupsToday,
+    companion.calendars,
+    companion.calendarEvents.length,
+    companion.meetingQuiet,
+    companion.calendars.map((c) => isSyncing(c.id)),
+    // นัดที่เพิ่งเริ่ม/จบ → ปรับรายการวันนี้
+    Math.floor(now / 60_000),
     // นัดที่เพิ่งเลยเวลา → ย้ายไปกลุ่ม "เลยเวลา"
     overdue(companion.reminders, now).length,
   ])
@@ -326,6 +496,7 @@ function render(): void {
   root.replaceChildren(header())
   if (tab === 'reminders') renderReminders()
   else if (tab === 'todos') renderTodos()
+  else if (tab === 'calendar') renderCalendar()
   else if (tab === 'focus') renderFocus()
   else renderHealth()
   place()

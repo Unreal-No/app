@@ -145,3 +145,29 @@ export async function getIdleSeconds(): Promise<number | null> {
     return null
   }
 }
+
+/**
+ * ดึงไฟล์ปฏิทินจากลิงก์ ICS — ในแอปจริงให้ Rust ดึง (WebView ถูกบล็อกด้วย CORS)
+ * ข้อผิดพลาดเป็นข้อความภาษาไทยพร้อมแสดงให้ผู้ใช้
+ */
+export async function fetchCalendar(url: string): Promise<string> {
+  if (isTauri) {
+    try {
+      return await invoke<string>('fetch_calendar', { url })
+    } catch (error) {
+      throw new Error(typeof error === 'string' ? error : 'ดึงปฏิทินไม่สำเร็จ')
+    }
+  }
+  // ในเบราว์เซอร์ (ตอนพัฒนา/ทดสอบ): ดึงตรงๆ — ลิงก์จริงส่วนใหญ่จะถูก CORS บล็อก
+  let response: Response
+  try {
+    response = await fetch(url)
+  } catch {
+    throw new Error('เบราว์เซอร์ดึงลิงก์นี้ไม่ได้ (ใช้ในแอปจริงได้)')
+  }
+  if (!response.ok) throw new Error(`ดึงปฏิทินไม่สำเร็จ (สถานะ ${response.status})`)
+  const text = await response.text()
+  if (!/^\s*BEGIN:VCALENDAR/i.test(text.replace(/^\uFEFF/, '')))
+    throw new Error('ลิงก์นี้ไม่ใช่ไฟล์ปฏิทิน (ICS)')
+  return text
+}

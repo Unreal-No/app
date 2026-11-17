@@ -74,6 +74,8 @@ export const settings: SaveSettings = { ...DEFAULT_SETTINGS }
 export const mode = {
   /** กำลังจับเวลาโฟกัส: สัตว์อยู่เงียบๆ ไม่ขอความสนใจ */
   focusing: false,
+  /** อยู่ในช่วงประชุมตามปฏิทิน: สัตว์เงียบ */
+  meeting: false,
   /** ความกว้างด้านขวาของจอที่แผงผู้ช่วยใช้อยู่ — สัตว์ไม่เดินเข้าไปใต้แผง */
   reserveRight: 0,
 }
@@ -81,7 +83,7 @@ export const mode = {
 /** ขอบขวาสุดที่สัตว์ไปยืนได้ตอนนี้ */
 export const walkMaxX = (margin: number): number => layout.width - margin - mode.reserveRight
 /** ควรงดคำพูดทั่วไปไหม (คำเตือนที่ผู้ใช้ตั้งเองยังพูดได้เสมอ) */
-export const hushed = (): boolean => settings.quiet || mode.focusing
+export const hushed = (): boolean => settings.quiet || mode.focusing || mode.meeting
 
 // ───────── โหมดมุมพักผ่อน: ไดโอรามาเล็กที่มุมขวาล่าง ─────────
 const HABITAT_PX = 110

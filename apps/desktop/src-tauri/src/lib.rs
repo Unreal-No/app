@@ -8,9 +8,11 @@
 //! - รายการหน้าต่างของโปรแกรมอื่น (ให้สัตว์เกาะขอบ) และซ่อนสัตว์เมื่อมีแอปเต็มจอ
 //! - เปิดพร้อม Windows (เลือกได้) และกันเปิดซ้ำ
 //! - แจ้งเตือนนัดด้วย Windows toast เมื่อหน้าต่างสัตว์ถูกซ่อน และบอกเวลาที่ผู้ใช้ไม่ได้แตะเครื่อง
+//! - ดึงลิงก์ปฏิทิน ICS (WebView ดึงเองไม่ได้เพราะ CORS)
 //! - ไฟล์เซฟในโฟลเดอร์ข้อมูลของแอป (เขียนแบบ atomic + สำเนาสำรองหมุนเวียน)
 
 mod alarms;
+mod calendar;
 mod idle;
 mod overlay;
 mod platforms;
@@ -138,6 +140,7 @@ pub fn run() {
             quit_now,
             alarms::set_alarms,
             idle::idle_seconds,
+            calendar::fetch_calendar,
             save::load_save,
             save::store_save
         ])
