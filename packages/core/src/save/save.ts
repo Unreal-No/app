@@ -1,5 +1,6 @@
 import { geneDb, type GeneDb } from '@mochimon/data'
 import { BEHAVIORS } from '../behavior/utility'
+import { createCompanion, repairCompanion, type CompanionState } from '../companion/companion'
 import { LIFE_STAGES } from '../body/composition'
 import { validateGenome } from '../genetics/genome'
 import { neutralEmotion } from '../mind/emotion'
@@ -19,7 +20,7 @@ export interface SaveSettings {
 
 /** รูปแบบไฟล์เซฟรุ่นปัจจุบัน */
 export interface SaveData {
-  v: 2
+  v: 3
   /** สัตว์ที่อยู่บนจอ (ไม่เกิน MAX_ACTIVE_PETS) */
   pets: PetState[]
   /** สัตว์ที่ฝากไว้ที่ฟาร์ม (ไม่ได้อยู่บนจอ เวลาของพวกมันหยุดนิ่ง) */
@@ -27,6 +28,8 @@ export interface SaveData {
   /** ฉากมุมพักผ่อนที่เลือก (null = โหมดกลมกลืน) */
   habitat: string | null
   settings: SaveSettings
+  /** ผู้ช่วยทำงาน: นัด งาน จับเวลาโฟกัส สุขภาพ (ตั้งแต่รุ่น 3) */
+  companion: CompanionState
   savedAt: number
 }
 
@@ -45,8 +48,9 @@ export function createSave(
   settings: SaveSettings = DEFAULT_SETTINGS,
   savedAt = 0,
   farm: PetState[] = [],
+  companion: CompanionState = createCompanion(savedAt),
 ): SaveData {
-  return { v: 2, pets, farm, habitat, settings: { ...settings }, savedAt }
+  return { v: 3, pets, farm, habitat, settings: { ...settings }, companion, savedAt }
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -115,7 +119,7 @@ function repairPet(raw: unknown, index: number, db: GeneDb): PetState | null {
 }
 
 /**
- * อ่านเซฟจากข้อความ JSON — รองรับรุ่น 1 (สัตว์ตัวเดียว) และรุ่น 2
+ * อ่านเซฟจากข้อความ JSON — รองรับรุ่น 1 (สัตว์ตัวเดียว), รุ่น 2 และรุ่น 3 (มีข้อมูลผู้ช่วย)
  * คืน null ถ้าอ่านไม่ได้หรือไม่เหลือสัตว์ที่ถูกต้องเลย (ผู้เรียกควรลองสำเนาสำรองถัดไป)
  */
 export function parseSave(json: string, db: GeneDb = geneDb): SaveData | null {
@@ -126,7 +130,12 @@ export function parseSave(json: string, db: GeneDb = geneDb): SaveData | null {
     return null
   }
   if (!isObject(raw)) return null
-  const rawPets = raw.v === 1 ? [raw.pet] : raw.v === 2 && Array.isArray(raw.pets) ? raw.pets : null
+  const rawPets =
+    raw.v === 1
+      ? [raw.pet]
+      : (raw.v === 2 || raw.v === 3) && Array.isArray(raw.pets)
+        ? raw.pets
+        : null
   if (!rawPets) return null
 
   const seen = new Set<string>()
@@ -156,11 +165,13 @@ export function parseSave(json: string, db: GeneDb = geneDb): SaveData | null {
     if (typeof settingsRaw[key] === 'boolean') settings[key] = settingsRaw[key]
   }
   return {
-    v: 2,
+    v: 3,
     pets,
     farm,
     habitat: typeof raw.habitat === 'string' ? raw.habitat : null,
     settings,
+    // รุ่นเก่าไม่มีข้อมูลผู้ช่วย → เริ่มว่าง; รายการที่เสียถูกทิ้งทีละรายการ
+    companion: repairCompanion(raw.companion, Date.now()),
     savedAt: num(raw.savedAt, 0, 0, Number.MAX_SAFE_INTEGER),
   }
 }

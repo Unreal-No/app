@@ -143,7 +143,7 @@ describe('ไฟล์เซฟ', () => {
     }
     const loaded = parseSave(JSON.stringify({ v: 1, pet: old }))
     expect(loaded).not.toBeNull()
-    expect(loaded!.v).toBe(2)
+    expect(loaded!.v).toBe(3)
     expect(loaded!.pets).toHaveLength(1)
     const pet = loaded!.pets[0]!
     expect(pet.name).toBe('โมจิ')
