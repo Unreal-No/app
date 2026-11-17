@@ -1,4 +1,7 @@
 import { HABITAT_KINDS, type HabitatKind } from '@mochimon/habitat'
+import * as assist from './assist'
+import { focusChipRect, onFocusChipClick, startFocusSession, tickAssistant } from './assist'
+import { assistantRect, openAssistant, toggleAssistant, updateAssistant } from './assistant'
 import {
   getLayout,
   onCursor,
@@ -14,9 +17,11 @@ import {
   addPet,
   callAll,
   care,
+  companion,
   farm,
   pets,
   recallFromFarm,
+  setCompanion,
   restore,
   saveNow,
   tickAll,
@@ -31,6 +36,7 @@ import {
   updatePanel,
 } from './panel'
 import type { PetActor } from './pet'
+import { signRect, updateSigns } from './signs'
 import { firstPet, loadSave } from './store'
 import {
   applyLayout,
@@ -100,6 +106,9 @@ addEventListener('contextmenu', (e) => {
 })
 
 onPlatforms(setWindows)
+// ในเบราว์เซอร์ (ไม่มีข้อมูลจาก Windows) การพิมพ์ก็นับว่าผู้ใช้อยู่
+addEventListener('keydown', () => (cursor.movedAt = performance.now()))
+onFocusChipClick(() => openAssistant('focus'))
 
 // ───────── เมนู tray ─────────
 onTray((action) => {
@@ -132,6 +141,12 @@ onTray((action) => {
     case 'panel':
       cyclePanel()
       break
+    case 'assistant':
+      toggleAssistant()
+      return
+    case 'focus-start':
+      startFocusSession()
+      return
     case 'quit':
       // เซฟให้เสร็จก่อนแล้วค่อยปิด (ฝั่ง Rust มีตัวจับเวลาสำรองถ้าตรงนี้ไม่ตอบ)
       void saveNow().then(quitApp)
@@ -160,8 +175,10 @@ function reportHitShapes(): void {
         const hit = actor.hit
         return { x: Math.round(hit.x), y: Math.round(hit.y), r: Math.round(hit.r) }
       })
-  const panel = panelRect()
-  if (panel && !press?.dragging) shapes.push(panel)
+  if (!press?.dragging) {
+    for (const rect of [panelRect(), assistantRect(), signRect(), focusChipRect()])
+      if (rect) shapes.push(rect)
+  }
   const key = JSON.stringify(shapes)
   if (key === shapesKey) return
   shapesKey = key
@@ -197,6 +214,9 @@ function frame(now: number): void {
 
   for (const actor of pets) actor.update(dt, pets)
   updatePanel()
+  tickAssistant()
+  updateSigns()
+  updateAssistant()
   reportHitShapes()
   canvas.style.cursor = press?.dragging
     ? 'grabbing'
@@ -225,7 +245,18 @@ async function start(): Promise<void> {
   addEventListener('beforeunload', saveNow)
   // สำหรับการทดสอบอัตโนมัติ
   Object.assign(window, {
-    __game: { pets, farm: () => farm, saveNow, addPet, settings, openPanel, closePanel },
+    __game: {
+      pets,
+      farm: () => farm,
+      saveNow,
+      addPet,
+      settings,
+      openPanel,
+      closePanel,
+      assist,
+      companion: () => companion,
+      setCompanion,
+    },
   })
   requestAnimationFrame(frame)
 }

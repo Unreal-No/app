@@ -2,17 +2,21 @@ import {
   breedPets,
   canBreed,
   carePet,
+  createCompanion,
   createSave,
+  incubate,
+  INCUBATION_SECONDS,
   MAX_ACTIVE_PETS,
   tickPet,
   type Behavior,
   type CareAction,
+  type CompanionState,
   type PetState,
   type SaveData,
 } from '@mochimon/core'
 import { PetActor } from './pet'
 import { newEgg, pickName, storeSave } from './store'
-import { cursor, habitatKind, layout, rng, settings, userActive } from './world'
+import { cursor, habitatKind, hushed, layout, mode, rng, settings, userActive } from './world'
 
 /**
  * สถานะของเกมบนจอ: สัตว์ที่เดินอยู่ (สูงสุด MAX_ACTIVE_PETS) สัตว์ที่ฝากฟาร์ม และคำสั่งดูแลทั้งหมด
@@ -20,6 +24,11 @@ import { cursor, habitatKind, layout, rng, settings, userActive } from './world'
  */
 export const pets: PetActor[] = []
 export let farm: PetState[] = []
+/** ข้อมูลผู้ช่วยทำงาน (นัด งาน โฟกัส สุขภาพ) — แก้ผ่าน `setCompanion` เพื่อให้ถูกเซฟ */
+export let companion: CompanionState = createCompanion(Date.now())
+export function setCompanion(next: CompanionState): void {
+  companion = next
+}
 
 const reslot = (): void => pets.forEach((actor, index) => (actor.slot = index))
 
@@ -64,6 +73,7 @@ export function snapshot(): SaveData {
     settings,
     Date.now(),
     farm,
+    companion,
   )
 }
 export const saveNow = (): Promise<void> => storeSave(snapshot())
@@ -71,6 +81,7 @@ export const saveNow = (): Promise<void> => storeSave(snapshot())
 export function restore(save: SaveData): void {
   for (const actor of [...pets]) removePet(actor)
   farm = save.farm
+  companion = save.companion
   Object.assign(settings, save.settings)
   // กระจายตัวกันตอนเริ่ม ไม่ให้ยืนกองกัน
   save.pets.forEach((state, index) => {
@@ -225,11 +236,14 @@ export function tickAll(dtSec: number): void {
           hour,
           cursorNear: cursor.seen && Math.hypot(cursor.x - hit.x, cursor.y - hit.y) < 260,
           userActive: active,
-          quiet: settings.quiet,
+          quiet: hushed(),
         },
         rng,
       ),
     )
+    // ระหว่างโฟกัส ไข่ฟักเร็วขึ้น 3 เท่า (เวลาที่ตั้งใจทำงานช่วยให้ลูกเกิดเร็วขึ้น)
+    if (mode.focusing && active && actor.isEgg)
+      actor.setState(incubate(actor.state, (2 * dtSec) / INCUBATION_SECONDS))
     const behavior = actor.state.behavior
     if (behavior !== lastBehavior.get(actor.state.id)) {
       lastBehavior.set(actor.state.id, behavior)

@@ -34,6 +34,8 @@ export type TrayAction =
   | 'fshide-on'
   | 'fshide-off'
   | 'quit'
+  | 'assistant'
+  | 'focus-start'
   | 'habitat-none'
   | 'habitat-meadow'
   | 'habitat-cloud'
@@ -120,4 +122,26 @@ export function onPlatforms(callback: (windows: DesktopWindow[]) => void): void 
 /** ให้เครื่องหมายถูกในเมนู tray และเธรดเบื้องหลังของ Rust ตรงกับค่าตั้งที่โหลดจากเซฟ */
 export function syncMenuState(menu: SaveSettings): void {
   if (isTauri) void invoke('sync_menu_state', { menu }).catch(() => undefined)
+}
+
+/** นัดที่ฝั่ง Rust ใช้แสดง Windows toast เมื่อหน้าต่างสัตว์ถูกซ่อน */
+export interface Alarm {
+  id: string
+  atMs: number
+  title: string
+  body: string
+}
+
+export function setAlarms(alarms: Alarm[]): void {
+  if (isTauri) void invoke('set_alarms', { alarms }).catch(() => undefined)
+}
+
+/** วินาทีตั้งแต่ผู้ใช้แตะเมาส์/คีย์บอร์ดครั้งล่าสุดทั้งเครื่อง (null = ไม่รองรับ) */
+export async function getIdleSeconds(): Promise<number | null> {
+  if (!isTauri) return null
+  try {
+    return await invoke<number | null>('idle_seconds')
+  } catch {
+    return null
+  }
 }

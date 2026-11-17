@@ -22,6 +22,8 @@ import {
   startPairing,
 } from './game'
 import type { PetActor } from './pet'
+import { button, el, rectOf } from './ui'
+import { openAssistant } from './assistant'
 import { pickName } from './store'
 import { NEED_TH, STAGE_TH } from './text'
 import { cursor, layout, rng, uiLayer } from './world'
@@ -41,24 +43,6 @@ const CARE_BUTTONS: { action: CareAction; label: string }[] = [
   { action: 'bathe', label: 'อาบน้ำ' },
   { action: 'rest', label: 'นอน' },
 ]
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className = '',
-  text = '',
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag)
-  if (className) node.className = className
-  if (text) node.textContent = text
-  return node
-}
-
-function button(label: string, onClick: () => void, className = ''): HTMLButtonElement {
-  const node = el('button', className, label)
-  node.type = 'button'
-  node.addEventListener('click', onClick)
-  return node
-}
 
 const root = el('div', 'panel')
 root.hidden = true
@@ -269,6 +253,12 @@ function renderCare(target: PetActor): void {
         render()
       }),
     )
+  footer.append(
+    button('ผู้ช่วย', () => {
+      closePanel()
+      openAssistant()
+    }),
+  )
   if (pets.length > 1)
     footer.append(
       button('ฝากฟาร์ม', () => {
@@ -368,13 +358,7 @@ function place(): void {
 /** พื้นที่ของแผง (พิกัดจอ) สำหรับแจ้ง Rust ว่าตรงนี้รับเมาส์ */
 export function panelRect(): { x: number; y: number; w: number; h: number } | null {
   if (!actor) return null
-  const rect = root.getBoundingClientRect()
-  return {
-    x: Math.round(rect.left),
-    y: Math.round(rect.top),
-    w: Math.round(rect.width),
-    h: Math.round(rect.height),
-  }
+  return rectOf(root)
 }
 
 export function updatePanel(): void {

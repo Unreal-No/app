@@ -57,10 +57,31 @@ export const flipY = (y: number): number => layout.height - y
 /** ตำแหน่งเคอร์เซอร์ (พิกัดจอ) */
 export const cursor = { x: -9999, y: -9999, seen: false, movedAt: performance.now() }
 
-/** ผู้ใช้ยังอยู่หน้าจอไหม — ประมาณจากการขยับเมาส์ใน 5 นาทีล่าสุด (เวลาของสัตว์หยุดเมื่อผู้ใช้ไม่อยู่) */
-export const userActive = (): boolean => performance.now() - cursor.movedAt < 5 * 60_000
+/**
+ * วินาทีตั้งแต่ผู้ใช้แตะเมาส์/คีย์บอร์ดครั้งล่าสุด
+ * ในแอปจริงอ่านจาก Windows (`systemIdle`, รวมการพิมพ์ในโปรแกรมอื่น) — ในเบราว์เซอร์ใช้การขยับเมาส์บนหน้า
+ */
+export const presence = { systemIdle: null as number | null }
+export const idleSeconds = (): number =>
+  presence.systemIdle ?? (performance.now() - cursor.movedAt) / 1000
+
+/** ผู้ใช้ยังอยู่หน้าจอไหม (เวลาของสัตว์หยุดเมื่อผู้ใช้ไม่อยู่) */
+export const userActive = (): boolean => idleSeconds() < 5 * 60
 
 export const settings: SaveSettings = { ...DEFAULT_SETTINGS }
+
+/** สถานะชั่วคราวที่หลายส่วนต้องรู้ */
+export const mode = {
+  /** กำลังจับเวลาโฟกัส: สัตว์อยู่เงียบๆ ไม่ขอความสนใจ */
+  focusing: false,
+  /** ความกว้างด้านขวาของจอที่แผงผู้ช่วยใช้อยู่ — สัตว์ไม่เดินเข้าไปใต้แผง */
+  reserveRight: 0,
+}
+
+/** ขอบขวาสุดที่สัตว์ไปยืนได้ตอนนี้ */
+export const walkMaxX = (margin: number): number => layout.width - margin - mode.reserveRight
+/** ควรงดคำพูดทั่วไปไหม (คำเตือนที่ผู้ใช้ตั้งเองยังพูดได้เสมอ) */
+export const hushed = (): boolean => settings.quiet || mode.focusing
 
 // ───────── โหมดมุมพักผ่อน: ไดโอรามาเล็กที่มุมขวาล่าง ─────────
 const HABITAT_PX = 110

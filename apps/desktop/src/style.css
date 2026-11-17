@@ -241,3 +241,254 @@ body {
   cursor: pointer;
   color: #7a6a84;
 }
+
+/* ───────── แผงผู้ช่วย ───────── */
+.panel.assistant {
+  width: 300px;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 6px 0 8px;
+}
+.panel .tabs button {
+  flex: 1;
+  padding: 3px 0;
+  background: #ffffff;
+}
+.panel .tabs button.active {
+  background: #b79ad6;
+  color: #ffffff;
+}
+.panel button.primary {
+  background: #8fd6a8;
+}
+.panel button.primary:hover {
+  background: #7cc996;
+}
+.quick-row {
+  display: flex;
+  gap: 4px;
+}
+.quick-input,
+.panel select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  border: 2px solid #4a3b52;
+  border-radius: 10px;
+  padding: 4px 8px;
+  background: #ffffff;
+  outline: none;
+}
+.quick-input:focus {
+  border-color: #b79ad6;
+}
+.quick-preview {
+  min-height: 1.35em;
+  margin: 3px 0 6px;
+}
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 230px;
+  overflow-y: auto;
+}
+.items li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  border-bottom: 1px dotted #d9cbe2;
+}
+.items li.late .item-sub {
+  color: #d9536f;
+  font-weight: 600;
+}
+.items li.done .item-text span {
+  text-decoration: line-through;
+  color: #9a8ca3;
+}
+.item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+label.item-text {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.item-sub {
+  font-size: 11px;
+  color: #7a6a84;
+}
+.timer {
+  text-align: center;
+  margin: 4px 0 8px;
+}
+.timer-time {
+  font-size: 40px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.timer.break .timer-time,
+.timer.longBreak .timer-time {
+  color: #4f9e6b;
+}
+.timer-phase {
+  color: #7a6a84;
+}
+.selects {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.select {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.toggle {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.toggle input,
+.items input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: #8fd6a8;
+}
+
+/* ───────── ป้ายที่สัตว์ถือมาแจ้ง ───────── */
+.sign {
+  position: absolute;
+  max-width: 280px;
+  min-width: 190px;
+  box-sizing: border-box;
+  padding: 8px 12px 10px;
+  background: #fff6d6;
+  color: #4a3b52;
+  border: 3px solid #4a3b52;
+  border-radius: 14px;
+  box-shadow: 0 5px 0 rgba(74, 59, 82, 0.2);
+  pointer-events: auto;
+  font-size: 13px;
+  animation: sign-pop 0.35s ease-out;
+}
+.sign-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 700;
+}
+.sign-icon {
+  font-family: 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
+}
+.sign-title {
+  overflow-wrap: anywhere;
+}
+.sign-body {
+  margin-top: 2px;
+  color: #6b5a74;
+}
+.sign-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.sign button {
+  font: inherit;
+  color: inherit;
+  background: #ffffff;
+  border: 2px solid #4a3b52;
+  border-radius: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.sign button.primary {
+  background: #8fd6a8;
+}
+.sign-more {
+  font-size: 11px;
+  color: #7a6a84;
+  margin-top: 4px;
+}
+.sign-more:empty {
+  display: none;
+}
+@keyframes sign-pop {
+  from {
+    transform: scale(0.6) translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* ───────── นาฬิกาโฟกัส ───────── */
+.focus-chip {
+  position: absolute;
+  width: 58px;
+  height: 58px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.focus-chip[hidden] {
+  display: none;
+}
+.focus-chip svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.focus-chip circle {
+  fill: #fffdf8;
+  stroke-width: 4;
+}
+.focus-chip .track {
+  stroke: #ece4f0;
+}
+.focus-chip .ring {
+  fill: none;
+  stroke: #ff8a7a;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.9s linear;
+}
+.focus-chip.break .ring {
+  stroke: #8fd6a8;
+}
+.focus-chip.paused {
+  opacity: 0.6;
+}
+.focus-chip span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #4a3b52;
+  font-variant-numeric: tabular-nums;
+}

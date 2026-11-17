@@ -17,13 +17,14 @@ import {
   cursor,
   flipY,
   groundLevel,
+  hushed,
   layout,
   PX_PER_UNIT,
   restSpot,
   rng,
   scene,
-  settings,
   surfaceAt,
+  walkMaxX,
   windowById,
 } from './world'
 
@@ -158,7 +159,7 @@ export class PetActor {
   }
 
   say(text?: string, seconds?: number): void {
-    if (settings.quiet && !text) return
+    if (hushed() && !text) return
     this.bubble.say(text ?? rng.pick(LINES[this.emotion]), seconds)
   }
   hearts(): void {
@@ -199,7 +200,7 @@ export class PetActor {
 
   private pickTarget(behavior: Behavior): void {
     const min = EDGE_MARGIN
-    const max = layout.width - EDGE_MARGIN
+    const max = walkMaxX(EDGE_MARGIN)
     if (behavior !== 'wander' && behavior !== 'zoomies') this.climb = null
     switch (behavior) {
       case 'wander':
@@ -314,7 +315,7 @@ export class PetActor {
     this.targetX = THREE.MathUtils.clamp(
       nearest.x + side * (nearestGap + 6),
       EDGE_MARGIN,
-      layout.width - EDGE_MARGIN,
+      walkMaxX(EDGE_MARGIN),
     )
     this.shuffling = true
   }
@@ -372,7 +373,10 @@ export class PetActor {
       if (this.isEgg) this.targetX = null
       else if (this.errand) this.targetX = this.errand.x
       else if (this.attending) this.targetX = null
-      else {
+      else if (this.x > walkMaxX(EDGE_MARGIN) + 20 && !this.standing) {
+        // แผงผู้ช่วยเปิดทับที่ยืนอยู่ → หลบออกมา
+        this.targetX = walkMaxX(EDGE_MARGIN)
+      } else {
         this.pickTarget(behavior)
         this.makeRoom(others)
       }
