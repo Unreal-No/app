@@ -1,5 +1,14 @@
 import { clamp } from '../rng'
 import {
+  CHAT_KEEP_TURNS,
+  CLAUDE_MODELS,
+  DEFAULT_CHAT_SETTINGS,
+  MAX_MEMORIES,
+  type ChatProvider,
+  type ChatSettings,
+  type ChatTurn,
+} from './chat'
+import {
   MAX_CALENDAR_EVENTS,
   type CalendarAck,
   type CalendarEvent,
@@ -44,6 +53,12 @@ export interface CompanionState {
   calendarAcks: Record<string, CalendarAck>
   /** ระหว่างประชุมให้สัตว์เงียบ และเลื่อนเตือนสุขภาพ */
   meetingQuiet: boolean
+  /** คุยกับสัตว์ด้วย AI */
+  chat: ChatSettings
+  /** ประวัติแชตล่าสุดของแต่ละตัว (รหัสสัตว์ → ข้อความ) */
+  chatHistory: Record<string, ChatTurn[]>
+  /** สิ่งที่แต่ละตัวจำได้เกี่ยวกับผู้ใช้ */
+  memories: Record<string, string[]>
   /** เวลาที่ตรวจการแจ้งเตือนครั้งล่าสุด — เปิดแอปใหม่จะได้รู้ว่าพลาดอะไรไประหว่างปิด */
   lastCheck: number
 }
@@ -60,6 +75,9 @@ export function createCompanion(now: number): CompanionState {
     calendarEvents: [],
     calendarAcks: {},
     meetingQuiet: true,
+    chat: { ...DEFAULT_CHAT_SETTINGS },
+    chatHistory: {},
+    memories: {},
     lastCheck: now,
   }
 }
@@ -168,6 +186,52 @@ function repairAcks(raw: unknown): Record<string, CalendarAck> {
   return acks
 }
 
+const PROVIDERS: ChatProvider[] = ['off', 'anthropic', 'ollama']
+
+function repairChat(raw: unknown): ChatSettings {
+  const base = { ...DEFAULT_CHAT_SETTINGS }
+  if (!isObject(raw)) return base
+  const model = str(raw.model, 64)
+  const ollamaUrl = str(raw.ollamaUrl, 200)
+  return {
+    provider: PROVIDERS.includes(raw.provider as ChatProvider)
+      ? (raw.provider as ChatProvider)
+      : base.provider,
+    consent: raw.consent === true,
+    model: model && CLAUDE_MODELS.some((m) => m.id === model) ? model : base.model,
+    // ต่อ Ollama ได้เฉพาะในเครื่องนี้
+    ollamaUrl:
+      ollamaUrl && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(ollamaUrl)
+        ? ollamaUrl
+        : base.ollamaUrl,
+    ollamaModel: str(raw.ollamaModel, 80) ?? base.ollamaModel,
+  }
+}
+
+function repairPerPet<T>(
+  raw: unknown,
+  repairItem: (value: unknown) => T | null,
+  keep: number,
+): Record<string, T[]> {
+  const out: Record<string, T[]> = {}
+  if (!isObject(raw)) return out
+  for (const [id, list] of Object.entries(raw).slice(0, 50)) {
+    if (!Array.isArray(list)) continue
+    const items = list
+      .map(repairItem)
+      .filter((x): x is T => x !== null)
+      .slice(-keep)
+    if (items.length) out[id] = items
+  }
+  return out
+}
+
+const repairTurn = (raw: unknown): ChatTurn | null => {
+  if (!isObject(raw) || (raw.role !== 'user' && raw.role !== 'pet')) return null
+  const text = str(raw.text, 2000)
+  return text ? { role: raw.role, text, at: finite(raw.at) ? raw.at : 0 } : null
+}
+
 /** รายการที่ไม่ซ้ำรหัส (ตัวที่ซ่อมไม่ได้ถูกทิ้งทีละรายการ ไม่ทำให้ทั้งเซฟเสีย) */
 function repairList<T extends { id: string }>(raw: unknown, repair: (r: unknown) => T | null): T[] {
   if (!Array.isArray(raw)) return []
@@ -250,6 +314,9 @@ export function repairCompanion(raw: unknown, now: number): CompanionState {
       .slice(0, MAX_CALENDAR_EVENTS),
     calendarAcks: repairAcks(raw.calendarAcks),
     meetingQuiet: raw.meetingQuiet !== false,
+    chat: repairChat(raw.chat),
+    chatHistory: repairPerPet(raw.chatHistory, repairTurn, CHAT_KEEP_TURNS),
+    memories: repairPerPet(raw.memories, (m) => str(m, 160), MAX_MEMORIES),
     lastCheck: finite(raw.lastCheck) ? Math.min(raw.lastCheck, now) : now,
   }
 }
