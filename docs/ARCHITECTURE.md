@@ -52,6 +52,7 @@
 3. `build/field.ts` หลอมรอยต่อของชิ้นส่วนในกลุ่มเดียวกันด้วยสนาม SDF (ดัน vertex + ใช้ normal ร่วม)
 4. `material/plush.ts` ผิวตุ๊กตา + ขนแบบ shell (InstancedMesh ซ้อนชั้น), `material/face.ts` ตา/ปาก/แก้มเป็น shader
 5. `anim/animate.ts` ผสมท่า (ยืน/นั่ง/หมอบ/นอนขด) + การเดิน หายใจ กะพริบตา หาง หู ปีก; `anim/expression.ts` ชุดสีหน้า
+6. `parts/partPack.ts` อ่านชุดชิ้นส่วน .glb (หู/เขา/ปีก/หาง) — `buildCreature` ใช้ชิ้นจากไฟล์แทนรูปทรงที่ชื่อตรงกัน แล้วผ่านขั้นทาสี/ขนเดิม ([PARTS_GUIDE.md](PARTS_GUIDE.md))
 
 ## packages/habitat
 
