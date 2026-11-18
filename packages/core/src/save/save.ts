@@ -11,6 +11,9 @@ import { noExperience, TRAIT_KEYS } from '../mind/personality'
 import { clamp } from '../rng'
 import { ORIGIN_KINDS, STAGE_START_SECONDS, type PetOrigin, type PetState } from '../sim/petSim'
 import { createSummonLog, repairSummonLog, type SummonLog } from '../summon/registry'
+import { repairRelations, type Relations } from '../mind/relations'
+import { PLACES, type Expedition, type PlaceId } from '../world/expedition'
+import { createInventory, repairInventory, type Inventory } from '../world/items'
 
 export interface SaveSettings {
   /** โหมดเงียบ (ไม่รบกวน) */
@@ -41,11 +44,24 @@ export interface SaveData {
   summons: SummonLog
   /** บันทึกเครือญาติ */
   family: FamilyBook
+  /** ของพิเศษและชิ้นฟอสซิล */
+  inventory: Inventory
+  /** สัตว์ที่ออกสำรวจอยู่ (ไม่อยู่บนจอ/ฟาร์ม) */
+  expeditions: Expedition[]
+  /** ความสัมพันธ์ระหว่างสัตว์ */
+  relations: Relations
+  /** เวลาที่แขกป่าตัวถัดไปจะมา (0 = ยังไม่กำหนด) */
+  visitorAt: number
   savedAt: number
 }
 
 /** ส่วนของเซฟที่เพิ่มทีหลัง (มีค่าเริ่มต้นเสมอ) */
-export type SaveExtras = Partial<Pick<SaveData, 'dex' | 'summons' | 'family'>>
+export type SaveExtras = Partial<
+  Pick<
+    SaveData,
+    'dex' | 'summons' | 'family' | 'inventory' | 'expeditions' | 'relations' | 'visitorAt'
+  >
+>
 
 /** จำนวนสัตว์สูงสุดที่เดินบนจอพร้อมกัน (ที่เหลืออยู่ฟาร์ม) */
 export const MAX_ACTIVE_PETS = 4
@@ -78,6 +94,10 @@ export function createSave(
     dex: extras.dex ?? createDex(),
     summons: extras.summons ?? createSummonLog(),
     family: extras.family ?? {},
+    inventory: extras.inventory ?? createInventory(),
+    expeditions: extras.expeditions ?? [],
+    relations: extras.relations ?? {},
+    visitorAt: extras.visitorAt ?? 0,
     savedAt,
   }
 }
@@ -202,6 +222,13 @@ export function parseSave(json: string, db: GeneDb = geneDb): SaveData | null {
   }
   const pets = repairAll(rawPets, 0)
   const farm = repairAll(Array.isArray(raw.farm) ? raw.farm : [], rawPets.length)
+  const expeditions: Expedition[] = []
+  for (const entry of Array.isArray(raw.expeditions) ? raw.expeditions : []) {
+    if (!isObject(entry)) continue
+    const pet = repairAll([entry.pet], 1000 + expeditions.length)[0]
+    const trip = pet ? repairExpedition(entry, pet) : null
+    if (trip) expeditions.push(trip)
+  }
   // บนจอว่างแต่ฟาร์มมีสัตว์ → พาตัวแรกกลับมา; บนจอเกินโควตา → ส่วนเกินไปฟาร์ม (ไม่มีตัวไหนหาย)
   if (pets.length === 0 && farm.length > 0) pets.push(farm.shift()!)
   if (pets.length === 0) return null
@@ -224,7 +251,47 @@ export function parseSave(json: string, db: GeneDb = geneDb): SaveData | null {
     dex: repairDex(raw.dex, db),
     summons: repairSummonLog(raw.summons),
     family: repairFamily(raw.family),
+    inventory: repairInventory(raw.inventory),
+    expeditions,
+    relations: repairRelations(raw.relations),
+    visitorAt: num(raw.visitorAt, 0, 0, Number.MAX_SAFE_INTEGER),
     savedAt: num(raw.savedAt, 0, 0, Number.MAX_SAFE_INTEGER),
+  }
+}
+
+/** ซ่อมการสำรวจ 1 รายการ (สัตว์ซ่อมแล้ว) — ข้อมูลเสียจนใช้ไม่ได้ → ให้สัตว์กลับบ้านทันทีพร้อมของเล็กน้อย */
+function repairExpedition(raw: Record<string, unknown>, pet: PetState): Expedition {
+  const place = (Object.keys(PLACES) as PlaceId[]).includes(raw.place as PlaceId)
+    ? (raw.place as PlaceId)
+    : 'meadow'
+  const startedAt = num(raw.startedAt, 0, 0, Number.MAX_SAFE_INTEGER)
+  const endsAt = num(raw.endsAt, startedAt, startedAt, Number.MAX_SAFE_INTEGER)
+  const lootRaw = isObject(raw.loot) ? raw.loot : {}
+  const bag = repairInventory({ items: lootRaw.items, fossils: lootRaw.fossils })
+  const eggRaw = isObject(lootRaw.egg) ? lootRaw.egg : null
+  const egg =
+    eggRaw &&
+    Array.isArray(eggRaw.species) &&
+    eggRaw.species.length === 2 &&
+    eggRaw.species.every((x) => typeof x === 'string') &&
+    typeof eggRaw.seed === 'string'
+      ? {
+          species: eggRaw.species as [string, string],
+          seed: eggRaw.seed,
+          mythical: eggRaw.mythical === true,
+        }
+      : undefined
+  return {
+    pet,
+    place,
+    startedAt,
+    endsAt,
+    loot: {
+      items: bag.items,
+      fossils: bag.fossils,
+      ...(egg ? { egg } : {}),
+      story: typeof lootRaw.story === 'string' ? lootRaw.story.slice(0, 120) : '',
+    },
   }
 }
 
