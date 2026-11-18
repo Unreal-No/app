@@ -232,6 +232,7 @@ async function importParts(data: ArrayBuffer, label: string): Promise<void> {
       `ชุดชิ้นส่วน: ${label}`,
       ...pack.report.used.map((u) => `✅ ${u.key} (${u.name})`),
       ...pack.report.unknown.map((u) => `❓ ไม่รู้จัก: ${u}`),
+      ...pack.report.notes.map((u) => `ℹ️ ${u}`),
       ...pack.report.problems.map((u) => `⚠️ ${u}`),
     ]
   } catch (error) {

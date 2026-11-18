@@ -137,6 +137,7 @@ function render(): void {
     for (const u of current.used) chips.append(el('span', 'chip', `✅ ${u.name} (${u.key})`))
     for (const u of current.unknown) chips.append(el('span', 'chip unknown', `❓ ${u}`))
     body.push(chips)
+    for (const n of current.notes) body.push(el('div', 'panel-hint', `ℹ️ ${n}`))
     for (const p of current.problems) body.push(el('div', 'panel-hint', `⚠️ ${p}`))
     body.push(button('กลับไปใช้ชิ้นส่วนเดิม', () => void resetParts()))
   }

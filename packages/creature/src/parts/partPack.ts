@@ -43,6 +43,8 @@ export interface PackReport {
   used: { key: string; name: string }[]
   /** ชื่อ node ที่ไม่ตรงกับรูปทรงใดเลย */
   unknown: string[]
+  /** ข้อสังเกต (ไม่ใช่ปัญหา) เช่น แปลงแกนให้แล้ว, material ที่ใช้สีจากไฟล์ */
+  notes: string[]
   problems: string[]
   triangles: number
 }
@@ -65,12 +67,36 @@ export function knownShapes(db: GeneDb = geneDb): Map<string, string> {
   return map
 }
 
-const roleOf = (name: string): { role: PieceRole; fur: boolean } => {
+/** ชื่อ material → บทบาท: ไม่ตั้งชื่อ = สีตัว, ชื่อที่ไม่รู้จัก (เช่น gold) = ใช้สีจากไฟล์ */
+const roleOf = (name: string): { role: PieceRole; fur: boolean; known: boolean } => {
   const lower = name.toLowerCase()
   const fur = !lower.includes('nofur')
+  if (!lower) return { role: 'skin', fur, known: true }
   for (const role of ['inner', 'accent', 'membrane', 'texture', 'skin'] as const)
-    if (lower.startsWith(role)) return { role, fur }
-  return { role: 'skin', fur }
+    if (lower.startsWith(role)) return { role, fur, known: true }
+  return { role: 'texture', fur, known: false }
+}
+
+/** Z-up (Blender/trimesh ดิบ) → Y-up ของ glTF: (x, y, z) → (x, z, −y) */
+const Z_UP_TO_Y_UP = new THREE.Matrix4().makeRotationX(-Math.PI / 2)
+
+/**
+ * ไฟล์ที่ไม่ได้ส่งออกจาก Blender (เช่น trimesh) มักไม่แปลงแกน — ดูจากทิศของชิ้นส่วน:
+ * หู/เขาควรงอกขึ้น (+Y) และหางควรยื่นไปด้านหลัง (−Z); ถ้ากลับเป็นงอกตาม +Z / หางไปตาม +Y แปลว่าเป็น Z-up
+ */
+function looksZUp(nodes: { slot: string; box: THREE.Box3 }[]): boolean {
+  let zUp = 0
+  let yUp = 0
+  for (const { slot, box } of nodes) {
+    if (slot === 'ears' || slot === 'horns') {
+      if (box.max.z > box.max.y * 1.3 && box.max.z > 0.15) zUp++
+      else if (box.max.y > box.max.z * 1.3 && box.max.y > 0.15) yUp++
+    } else if (slot === 'tail') {
+      if (box.max.y > -box.min.z && box.max.y > 0.3) zUp++
+      else if (-box.min.z > box.max.y && -box.min.z > 0.3) yUp++
+    }
+  }
+  return zUp > yUp
 }
 
 const triangles = (g: THREE.BufferGeometry): number =>
@@ -80,16 +106,19 @@ const triangles = (g: THREE.BufferGeometry): number =>
 export async function loadPartPack(data: ArrayBuffer, db: GeneDb = geneDb): Promise<PartPack> {
   if (data.byteLength > MAX_PACK_BYTES) throw new Error('ไฟล์ใหญ่เกิน 20 MB')
   let scene: THREE.Group
+  let generator = ''
   try {
     const gltf = await new GLTFLoader().parseAsync(data, '')
     scene = gltf.scene
+    generator = String((gltf.asset as { generator?: string } | undefined)?.generator ?? '')
   } catch {
     throw new Error('อ่านไฟล์นี้ไม่ได้ — ต้องเป็นไฟล์ .glb (glTF แบบไฟล์เดียว)')
   }
   scene.updateMatrixWorld(true)
   const known = knownShapes(db)
   const parts = new Map<string, PartModel>()
-  const report: PackReport = { used: [], unknown: [], problems: [], triangles: 0 }
+  const report: PackReport = { used: [], unknown: [], notes: [], problems: [], triangles: 0 }
+  const fileColors = new Set<string>()
   const ownedMaterials = new Set<THREE.Material>()
 
   // three.js ตัดจุดออกจากชื่อ node (ชื่อเดิมอยู่ใน userData.name) และผู้ออกแบบอาจใช้ขีดล่างแทนจุด
@@ -101,6 +130,25 @@ export async function loadPartPack(data: ArrayBuffer, db: GeneDb = geneDb): Prom
   scene.traverse((obj) => {
     if (isPart(obj) && !isPart(obj.parent)) candidates.push(obj)
   })
+  // ไฟล์จาก Blender แปลงแกนถูกเสมอ — ตรวจเฉพาะไฟล์จากเครื่องมืออื่น
+  const zUp =
+    !/blender/i.test(generator) &&
+    looksZUp(
+      candidates.map((node) => {
+        const box = new THREE.Box3()
+        const inv = node.matrixWorld.clone().invert()
+        node.traverse((obj) => {
+          if (!(obj instanceof THREE.Mesh)) return
+          const g = (obj.geometry as THREE.BufferGeometry).clone()
+          g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, obj.matrixWorld))
+          g.computeBoundingBox()
+          box.union(g.boundingBox!)
+          g.dispose()
+        })
+        return { slot: nameOf(node).split('.')[0]!, box }
+      }),
+    )
+  if (zUp) report.notes.push('ไฟล์นี้ใช้แกน Z ชี้ขึ้น — แปลงให้เป็นแกนของเกมแล้ว')
   for (const node of candidates) {
     const raw = nameOf(node)
     const center = raw.endsWith('.center')
@@ -120,12 +168,14 @@ export async function loadPartPack(data: ArrayBuffer, db: GeneDb = geneDb): Prom
       if (!(obj instanceof THREE.Mesh)) return
       const geometry = (obj.geometry as THREE.BufferGeometry).clone()
       geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverse, obj.matrixWorld))
+      if (zUp) geometry.applyMatrix4(Z_UP_TO_Y_UP)
       if (!geometry.getAttribute('normal')) geometry.computeVertexNormals()
       // ใช้แค่ตำแหน่ง/normal/uv — สี/ขนคำนวณใหม่ตามยีนส์
       for (const attr of Object.keys(geometry.attributes))
         if (!['position', 'normal', 'uv'].includes(attr)) geometry.deleteAttribute(attr)
       const material = Array.isArray(obj.material) ? obj.material[0] : obj.material
-      const { role, fur } = roleOf(material?.name ?? '')
+      const { role, fur, known } = roleOf(material?.name ?? '')
+      if (!known && material?.name) fileColors.add(material.name)
       report.triangles += triangles(geometry)
       const piece: PartPiece = { geometry, role, fur }
       if (role === 'texture' && material) {
@@ -153,6 +203,8 @@ export async function loadPartPack(data: ArrayBuffer, db: GeneDb = geneDb): Prom
       report.used.push({ key, name: label })
     }
   }
+  if (fileColors.size > 0)
+    report.notes.push(`ใช้สีจากไฟล์สำหรับ material: ${[...fileColors].join(', ')}`)
   const disposeAll = (): void => {
     for (const part of parts.values()) for (const piece of part.pieces) piece.geometry.dispose()
     for (const m of ownedMaterials) m.dispose()
