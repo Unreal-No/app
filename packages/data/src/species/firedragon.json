@@ -1,0 +1,155 @@
+{
+  "id": "firedragon",
+  "name": {
+    "th": "มังกรไฟ",
+    "en": "Fire Dragon"
+  },
+  "lineage": "mythical",
+  "nameParts": {
+    "prefix": ["Pyra", "Ember", "Ka"],
+    "suffix": ["pyre", "flare", "blaze"]
+  },
+  "parts": {
+    "head.shape": [["head.dragon", 10]],
+    "ear.type": [
+      ["ear.cat", 8],
+      ["ear.fin", 2]
+    ],
+    "horn.type": [
+      ["horn.curved", 8],
+      ["horn.nub", 2]
+    ],
+    "wing.type": [
+      ["wing.bat", 8],
+      ["wing.fairy", 2]
+    ],
+    "tail.type": [
+      ["tail.dragon", 7],
+      ["tail.flowy", 3]
+    ],
+    "limb.type": [
+      ["limb.quad", 7],
+      ["limb.stubby", 3]
+    ],
+    "eye.type": [
+      ["eye.sparkle", 7],
+      ["eye.round", 3]
+    ],
+    "pattern.type": [
+      ["pattern.scales", 6],
+      ["pattern.gradient", 4]
+    ],
+    "special.trait": [["special.none", 1]],
+    "marking.mask": [
+      ["mask.none", 9],
+      ["mask.cape", 1]
+    ],
+    "marking.socks": [
+      ["socks.none", 6],
+      ["socks.short", 4]
+    ],
+    "marking.tail": [
+      ["tailmark.tip", 8],
+      ["tailmark.none", 2]
+    ],
+    "marking.symbol": [
+      ["symbol.none", 20],
+      ["symbol.star", 1]
+    ]
+  },
+  "nums": {
+    "body.size": [0.56, 0.08],
+    "body.length": [0.5, 0.08],
+    "body.girth": [0.58, 0.1],
+    "leg.length": [0.36, 0.07],
+    "head.size": [0.66, 0.07],
+    "horn.size": [0.6, 0.1],
+    "wing.size": [0.6, 0.1],
+    "tail.size": [0.62, 0.1],
+    "eye.size": [0.66, 0.08],
+    "temper.mischief": [0.6, 0.15],
+    "temper.playful": [0.75, 0.15],
+    "temper.affection": [0.6, 0.15],
+    "temper.shy": [0.2, 0.1],
+    "meta.chronotype": [0.35, 0.12],
+    "voice.pitch": [0.55, 0.1],
+    "fur.length": [0.2, 0.08],
+    "glow.level": [0.3, 0.1]
+  },
+  "colors": {
+    "color.base": [
+      {
+        "l": 0.73,
+        "c": 0.112,
+        "h": 187,
+        "d": 0.7
+      },
+      {
+        "l": 0.76,
+        "c": 0.101,
+        "h": 198,
+        "d": 0.5
+      }
+    ],
+    "color.belly": [
+      {
+        "l": 0.96,
+        "c": 0.028,
+        "h": 74,
+        "d": 0.6
+      }
+    ],
+    "color.pattern": [
+      {
+        "l": 0.84,
+        "c": 0.13,
+        "h": 150,
+        "d": 0.6
+      },
+      {
+        "l": 0.87,
+        "c": 0.146,
+        "h": 102,
+        "d": 0.4
+      }
+    ],
+    "color.eye": [
+      {
+        "l": 0.51,
+        "c": 0.131,
+        "h": 43,
+        "d": 0.6
+      }
+    ],
+    "color.accent": [
+      {
+        "l": 0.48,
+        "c": 0.11,
+        "h": 45,
+        "d": 0.6
+      }
+    ],
+    "color.mark": [
+      {
+        "l": 0.75,
+        "c": 0.167,
+        "h": 51,
+        "d": 0.6
+      },
+      {
+        "l": 0.76,
+        "c": 0.144,
+        "h": 37,
+        "d": 0.4
+      }
+    ],
+    "color.inner": [
+      {
+        "l": 0.76,
+        "c": 0.144,
+        "h": 37,
+        "d": 0.5
+      }
+    ]
+  }
+}

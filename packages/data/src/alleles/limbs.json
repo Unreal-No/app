@@ -1,0 +1,47 @@
+[
+  {
+    "id": "limb.quad",
+    "locus": "limb.type",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "สี่ขาอุ้งเท้า", "en": "Four paws" },
+    "shape": "quad"
+  },
+  {
+    "id": "limb.biped",
+    "locus": "limb.type",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "สองขา", "en": "Two legs" },
+    "shape": "biped"
+  },
+  {
+    "id": "limb.stubby",
+    "locus": "limb.type",
+    "dominance": 2,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "ขาป้อม", "en": "Stubby" },
+    "shape": "stubby"
+  },
+  {
+    "id": "limb.hoof",
+    "locus": "limb.type",
+    "dominance": 2,
+    "lineage": "any",
+    "rarity": "uncommon",
+    "name": { "th": "สี่ขากีบ", "en": "Hooves" },
+    "shape": "hoof"
+  },
+  {
+    "id": "limb.flipper",
+    "locus": "limb.type",
+    "dominance": 1,
+    "lineage": "modern",
+    "rarity": "uncommon",
+    "name": { "th": "ครีบว่ายน้ำ", "en": "Flippers" },
+    "shape": "flipper"
+  }
+]

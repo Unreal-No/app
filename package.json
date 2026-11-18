@@ -1,0 +1,26 @@
+{
+  "name": "mochimon",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lab": "pnpm --filter @mochimon/lab dev",
+    "lab:build": "pnpm --filter @mochimon/lab build",
+    "desktop": "pnpm --filter @mochimon/desktop tauri dev",
+    "desktop:build": "pnpm --filter @mochimon/desktop tauri build"
+  },
+  "devDependencies": {
+    "prettier": "^3.10.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,0 +1,71 @@
+[
+  {
+    "id": "ear.none",
+    "locus": "ear.type",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "ไม่มีใบหู", "en": "None" },
+    "shape": "none"
+  },
+  {
+    "id": "ear.cat",
+    "locus": "ear.type",
+    "dominance": 3,
+    "lineage": "modern",
+    "rarity": "common",
+    "name": { "th": "หูแหลม", "en": "Pointed" },
+    "shape": "point",
+    "params": { "len": 0.55, "width": 0.5 }
+  },
+  {
+    "id": "ear.bunny",
+    "locus": "ear.type",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "common",
+    "name": { "th": "หูยาว", "en": "Long" },
+    "shape": "long",
+    "params": { "len": 1.3, "width": 0.3 }
+  },
+  {
+    "id": "ear.round",
+    "locus": "ear.type",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "หูกลม", "en": "Round" },
+    "shape": "round",
+    "params": { "len": 0.42, "width": 0.45 }
+  },
+  {
+    "id": "ear.floppy",
+    "locus": "ear.type",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "uncommon",
+    "name": { "th": "หูตก", "en": "Floppy" },
+    "shape": "floppy",
+    "params": { "len": 0.9, "width": 0.36 }
+  },
+  {
+    "id": "ear.fin",
+    "locus": "ear.type",
+    "dominance": 1,
+    "lineage": "mythical",
+    "rarity": "rare",
+    "name": { "th": "หูครีบ", "en": "Fin ears" },
+    "shape": "fin",
+    "params": { "len": 0.6, "width": 0.5 }
+  },
+  {
+    "id": "ear.tuft",
+    "locus": "ear.type",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "uncommon",
+    "name": { "th": "ขนหงอน", "en": "Feather tufts" },
+    "shape": "tuft",
+    "params": { "len": 0.45, "width": 0.22 }
+  }
+]

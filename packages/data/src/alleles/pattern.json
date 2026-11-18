@@ -1,0 +1,56 @@
+[
+  {
+    "id": "pattern.plain",
+    "locus": "pattern.type",
+    "dominance": 2,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "สีพื้น", "en": "Plain" },
+    "shape": "plain"
+  },
+  {
+    "id": "pattern.spots",
+    "locus": "pattern.type",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "ลายจุด", "en": "Spots" },
+    "shape": "spots"
+  },
+  {
+    "id": "pattern.stripes",
+    "locus": "pattern.type",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "ลายทาง", "en": "Stripes" },
+    "shape": "stripes"
+  },
+  {
+    "id": "pattern.scales",
+    "locus": "pattern.type",
+    "dominance": 4,
+    "lineage": "any",
+    "rarity": "uncommon",
+    "name": { "th": "เกล็ด", "en": "Scales" },
+    "shape": "scales"
+  },
+  {
+    "id": "pattern.patch",
+    "locus": "pattern.type",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "uncommon",
+    "name": { "th": "ลายด่าง", "en": "Patches" },
+    "shape": "patch"
+  },
+  {
+    "id": "pattern.gradient",
+    "locus": "pattern.type",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "rare",
+    "name": { "th": "ไล่สี", "en": "Gradient" },
+    "shape": "gradient"
+  }
+]

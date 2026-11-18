@@ -1,0 +1,153 @@
+[
+  {
+    "id": "tail.nub",
+    "locus": "tail.type",
+    "dominance": 2,
+    "lineage": "any",
+    "rarity": "common",
+    "name": {
+      "th": "หางสั้นกุด",
+      "en": "Nub"
+    },
+    "shape": "nub",
+    "params": {
+      "len": 0.25
+    }
+  },
+  {
+    "id": "tail.cat",
+    "locus": "tail.type",
+    "dominance": 3,
+    "lineage": "modern",
+    "rarity": "common",
+    "name": {
+      "th": "หางแมว",
+      "en": "Slender"
+    },
+    "shape": "thin",
+    "params": {
+      "len": 1.1
+    }
+  },
+  {
+    "id": "tail.fluffy",
+    "locus": "tail.type",
+    "dominance": 3,
+    "lineage": "modern",
+    "rarity": "common",
+    "name": {
+      "th": "หางฟู",
+      "en": "Fluffy"
+    },
+    "shape": "fluffy",
+    "params": {
+      "len": 1.5
+    }
+  },
+  {
+    "id": "tail.pom",
+    "locus": "tail.type",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "common",
+    "name": {
+      "th": "หางปุย",
+      "en": "Pom"
+    },
+    "shape": "pom",
+    "params": {
+      "len": 0.3
+    }
+  },
+  {
+    "id": "tail.fan",
+    "locus": "tail.type",
+    "dominance": 3,
+    "lineage": "modern",
+    "rarity": "common",
+    "name": {
+      "th": "หางพัด",
+      "en": "Fan"
+    },
+    "shape": "fan",
+    "params": {
+      "len": 0.6
+    }
+  },
+  {
+    "id": "tail.dino",
+    "locus": "tail.type",
+    "dominance": 4,
+    "lineage": "prehistoric",
+    "rarity": "uncommon",
+    "name": {
+      "th": "หางไดโนเสาร์",
+      "en": "Thick"
+    },
+    "shape": "thick",
+    "params": {
+      "len": 1.0
+    }
+  },
+  {
+    "id": "tail.dragon",
+    "locus": "tail.type",
+    "dominance": 4,
+    "lineage": "mythical",
+    "rarity": "rare",
+    "name": {
+      "th": "หางมังกร",
+      "en": "Spade"
+    },
+    "shape": "spade",
+    "params": {
+      "len": 1.15
+    }
+  },
+  {
+    "id": "tail.flowy",
+    "locus": "tail.type",
+    "dominance": 2,
+    "lineage": "mythical",
+    "rarity": "rare",
+    "name": {
+      "th": "หางพู่",
+      "en": "Flowing"
+    },
+    "shape": "flowy",
+    "params": {
+      "len": 0.95
+    }
+  },
+  {
+    "id": "tail.fish",
+    "locus": "tail.type",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "uncommon",
+    "name": {
+      "th": "หางปลา",
+      "en": "Fishtail"
+    },
+    "shape": "fish",
+    "params": {
+      "len": 0.75
+    }
+  },
+  {
+    "id": "tail.twin",
+    "locus": "tail.type",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "legendary",
+    "mutationOnly": true,
+    "name": {
+      "th": "สองหาง",
+      "en": "Twin tails"
+    },
+    "shape": "twin",
+    "params": {
+      "len": 1.1
+    }
+  }
+]

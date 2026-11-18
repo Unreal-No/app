@@ -1,0 +1,167 @@
+{
+  "id": "unicorn",
+  "name": {
+    "th": "ยูนิคอร์น",
+    "en": "Unicorn"
+  },
+  "lineage": "mythical",
+  "nameParts": {
+    "prefix": ["Uni", "Luna", "Star"],
+    "suffix": ["corn", "luna", "mane"]
+  },
+  "parts": {
+    "head.shape": [["head.horse", 10]],
+    "ear.type": [
+      ["ear.cat", 8],
+      ["ear.round", 2]
+    ],
+    "horn.type": [["horn.spiral", 10]],
+    "wing.type": [
+      ["wing.none", 8],
+      ["wing.feather", 1],
+      ["wing.fairy", 1]
+    ],
+    "tail.type": [["tail.flowy", 10]],
+    "limb.type": [["limb.hoof", 10]],
+    "eye.type": [
+      ["eye.sparkle", 6],
+      ["eye.round", 4]
+    ],
+    "pattern.type": [
+      ["pattern.plain", 6],
+      ["pattern.gradient", 3],
+      ["pattern.spots", 1]
+    ],
+    "special.trait": [["special.none", 1]],
+    "marking.mask": [
+      ["mask.none", 8],
+      ["mask.cap", 2]
+    ],
+    "marking.socks": [
+      ["socks.none", 5],
+      ["socks.short", 3],
+      ["socks.long", 2]
+    ],
+    "marking.tail": [
+      ["tailmark.none", 5],
+      ["tailmark.tip", 5]
+    ],
+    "marking.symbol": [
+      ["symbol.none", 15],
+      ["symbol.heart", 1],
+      ["symbol.star", 1],
+      ["symbol.moon", 1]
+    ]
+  },
+  "nums": {
+    "body.size": [0.6, 0.08],
+    "body.length": [0.5, 0.08],
+    "body.girth": [0.42, 0.08],
+    "leg.length": [0.65, 0.08],
+    "head.size": [0.55, 0.06],
+    "ear.size": [0.4, 0.08],
+    "horn.size": [0.6, 0.12],
+    "tail.size": [0.6, 0.1],
+    "eye.size": [0.6, 0.08],
+    "temper.shy": [0.6, 0.18],
+    "temper.affection": [0.7, 0.15],
+    "temper.mischief": [0.25, 0.12],
+    "voice.pitch": [0.65, 0.1],
+    "fur.length": [0.45, 0.1],
+    "glow.level": [0.7, 0.12]
+  },
+  "colors": {
+    "color.base": [
+      {
+        "l": 0.97,
+        "c": 0.015,
+        "h": 300,
+        "d": 0.4
+      },
+      {
+        "l": 0.9,
+        "c": 0.05,
+        "h": 330,
+        "d": 0.3
+      },
+      {
+        "l": 0.9,
+        "c": 0.05,
+        "h": 220,
+        "d": 0.3
+      }
+    ],
+    "color.belly": [
+      {
+        "l": 0.98,
+        "c": 0.01,
+        "h": 300,
+        "d": 0.5
+      }
+    ],
+    "color.pattern": [
+      {
+        "l": 0.82,
+        "c": 0.1,
+        "h": 320,
+        "d": 0.4
+      },
+      {
+        "l": 0.82,
+        "c": 0.1,
+        "h": 200,
+        "d": 0.4
+      }
+    ],
+    "color.eye": [
+      {
+        "l": 0.65,
+        "c": 0.17,
+        "h": 300,
+        "d": 0.4
+      },
+      {
+        "l": 0.7,
+        "c": 0.14,
+        "h": 220,
+        "d": 0.5
+      }
+    ],
+    "color.accent": [
+      {
+        "l": 0.88,
+        "c": 0.12,
+        "h": 90,
+        "d": 0.6
+      },
+      {
+        "l": 0.85,
+        "c": 0.1,
+        "h": 340,
+        "d": 0.4
+      }
+    ],
+    "color.mark": [
+      {
+        "l": 0.82,
+        "c": 0.1,
+        "h": 320,
+        "d": 0.4
+      },
+      {
+        "l": 0.82,
+        "c": 0.1,
+        "h": 200,
+        "d": 0.4
+      }
+    ],
+    "color.inner": [
+      {
+        "l": 0.87,
+        "c": 0.08,
+        "h": 350,
+        "d": 0.5
+      }
+    ]
+  }
+}

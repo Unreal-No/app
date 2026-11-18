@@ -1,0 +1,38 @@
+[
+  {
+    "id": "eye.round",
+    "locus": "eye.type",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "ตากลมแป๋ว", "en": "Round" },
+    "shape": "round"
+  },
+  {
+    "id": "eye.sparkle",
+    "locus": "eye.type",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "rare",
+    "name": { "th": "ตาเป็นประกาย", "en": "Sparkle" },
+    "shape": "sparkle"
+  },
+  {
+    "id": "eye.sleepy",
+    "locus": "eye.type",
+    "dominance": 2,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "ตาปรือ", "en": "Sleepy" },
+    "shape": "sleepy"
+  },
+  {
+    "id": "eye.slit",
+    "locus": "eye.type",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "uncommon",
+    "name": { "th": "ตารูม่านตาเรียว", "en": "Slit" },
+    "shape": "slit"
+  }
+]

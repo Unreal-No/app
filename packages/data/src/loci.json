@@ -1,0 +1,393 @@
+[
+  {
+    "id": "head.shape",
+    "kind": "part",
+    "slot": "head",
+    "linkage": 1,
+    "name": {
+      "th": "ทรงหัว",
+      "en": "Head shape"
+    }
+  },
+  {
+    "id": "ear.type",
+    "kind": "part",
+    "slot": "ears",
+    "linkage": 1,
+    "name": {
+      "th": "หู",
+      "en": "Ears"
+    }
+  },
+  {
+    "id": "horn.type",
+    "kind": "part",
+    "slot": "horns",
+    "name": {
+      "th": "เขา",
+      "en": "Horns"
+    }
+  },
+  {
+    "id": "wing.type",
+    "kind": "part",
+    "slot": "wings",
+    "linkage": 3,
+    "name": {
+      "th": "ปีก",
+      "en": "Wings"
+    }
+  },
+  {
+    "id": "tail.type",
+    "kind": "part",
+    "slot": "tail",
+    "linkage": 4,
+    "name": {
+      "th": "หาง",
+      "en": "Tail"
+    }
+  },
+  {
+    "id": "limb.type",
+    "kind": "part",
+    "slot": "limbs",
+    "name": {
+      "th": "แขนขา",
+      "en": "Limbs"
+    }
+  },
+  {
+    "id": "eye.type",
+    "kind": "part",
+    "slot": "eyes",
+    "name": {
+      "th": "ดวงตา",
+      "en": "Eyes"
+    }
+  },
+  {
+    "id": "pattern.type",
+    "kind": "part",
+    "slot": "pattern",
+    "linkage": 2,
+    "name": {
+      "th": "ลวดลาย",
+      "en": "Pattern"
+    }
+  },
+  {
+    "id": "special.trait",
+    "kind": "part",
+    "slot": "special",
+    "name": {
+      "th": "ลักษณะพิเศษ",
+      "en": "Special trait"
+    }
+  },
+  {
+    "id": "marking.mask",
+    "kind": "part",
+    "slot": "mask",
+    "linkage": 2,
+    "name": {
+      "th": "ลายแต้มหัว/หลัง",
+      "en": "Head & back marking"
+    }
+  },
+  {
+    "id": "marking.socks",
+    "kind": "part",
+    "slot": "socks",
+    "name": {
+      "th": "ถุงเท้า",
+      "en": "Socks"
+    }
+  },
+  {
+    "id": "marking.tail",
+    "kind": "part",
+    "slot": "tailmark",
+    "linkage": 4,
+    "name": {
+      "th": "ลายหาง",
+      "en": "Tail marking"
+    }
+  },
+  {
+    "id": "marking.symbol",
+    "kind": "part",
+    "slot": "symbol",
+    "name": {
+      "th": "สัญลักษณ์บนตัว",
+      "en": "Symbol mark"
+    }
+  },
+  {
+    "id": "body.size",
+    "kind": "num",
+    "name": {
+      "th": "ขนาดตัว",
+      "en": "Body size"
+    }
+  },
+  {
+    "id": "body.length",
+    "kind": "num",
+    "name": {
+      "th": "ความยาวลำตัว",
+      "en": "Body length"
+    }
+  },
+  {
+    "id": "body.girth",
+    "kind": "num",
+    "name": {
+      "th": "โครงร่าง",
+      "en": "Frame"
+    }
+  },
+  {
+    "id": "leg.length",
+    "kind": "num",
+    "name": {
+      "th": "ความยาวขา",
+      "en": "Leg length"
+    }
+  },
+  {
+    "id": "head.size",
+    "kind": "num",
+    "name": {
+      "th": "ขนาดหัว",
+      "en": "Head size"
+    }
+  },
+  {
+    "id": "ear.size",
+    "kind": "num",
+    "linkage": 1,
+    "name": {
+      "th": "ขนาดหู",
+      "en": "Ear size"
+    }
+  },
+  {
+    "id": "horn.size",
+    "kind": "num",
+    "name": {
+      "th": "ขนาดเขา",
+      "en": "Horn size"
+    }
+  },
+  {
+    "id": "wing.size",
+    "kind": "num",
+    "linkage": 3,
+    "name": {
+      "th": "ขนาดปีก",
+      "en": "Wing size"
+    }
+  },
+  {
+    "id": "tail.size",
+    "kind": "num",
+    "linkage": 4,
+    "name": {
+      "th": "ขนาดหาง",
+      "en": "Tail size"
+    }
+  },
+  {
+    "id": "eye.size",
+    "kind": "num",
+    "name": {
+      "th": "ขนาดตา",
+      "en": "Eye size"
+    }
+  },
+  {
+    "id": "pattern.scale",
+    "kind": "num",
+    "linkage": 2,
+    "name": {
+      "th": "ขนาดลาย",
+      "en": "Pattern scale"
+    }
+  },
+  {
+    "id": "pattern.contrast",
+    "kind": "num",
+    "linkage": 2,
+    "name": {
+      "th": "ความชัดลาย",
+      "en": "Pattern contrast"
+    }
+  },
+  {
+    "id": "fur.length",
+    "kind": "num",
+    "name": {
+      "th": "ความฟูของขน",
+      "en": "Fur length"
+    }
+  },
+  {
+    "id": "glow.level",
+    "kind": "num",
+    "name": {
+      "th": "ความเรืองแสงของเขา/ปีก",
+      "en": "Horn & wing glow"
+    }
+  },
+  {
+    "id": "meta.metabolism",
+    "kind": "num",
+    "hidden": true,
+    "name": {
+      "th": "การเผาผลาญ",
+      "en": "Metabolism"
+    }
+  },
+  {
+    "id": "meta.chronotype",
+    "kind": "num",
+    "hidden": true,
+    "name": {
+      "th": "นาฬิกาชีวิต (เช้า↔ดึก)",
+      "en": "Chronotype"
+    }
+  },
+  {
+    "id": "voice.pitch",
+    "kind": "num",
+    "hidden": true,
+    "name": {
+      "th": "โทนเสียง",
+      "en": "Voice pitch"
+    }
+  },
+  {
+    "id": "temper.affection",
+    "kind": "num",
+    "hidden": true,
+    "name": {
+      "th": "ขี้อ้อน",
+      "en": "Affectionate"
+    }
+  },
+  {
+    "id": "temper.mischief",
+    "kind": "num",
+    "hidden": true,
+    "name": {
+      "th": "ดื้อ/ซน",
+      "en": "Mischievous"
+    }
+  },
+  {
+    "id": "temper.playful",
+    "kind": "num",
+    "hidden": true,
+    "name": {
+      "th": "ขี้เล่น",
+      "en": "Playful"
+    }
+  },
+  {
+    "id": "temper.sleepy",
+    "kind": "num",
+    "hidden": true,
+    "name": {
+      "th": "ขี้เซา",
+      "en": "Sleepy"
+    }
+  },
+  {
+    "id": "temper.shy",
+    "kind": "num",
+    "hidden": true,
+    "name": {
+      "th": "ขี้อาย",
+      "en": "Shy"
+    }
+  },
+  {
+    "id": "temper.curious",
+    "kind": "num",
+    "hidden": true,
+    "name": {
+      "th": "อยากรู้อยากเห็น",
+      "en": "Curious"
+    }
+  },
+  {
+    "id": "temper.appetite",
+    "kind": "num",
+    "hidden": true,
+    "name": {
+      "th": "ตะกละ",
+      "en": "Appetite"
+    }
+  },
+  {
+    "id": "color.base",
+    "kind": "color",
+    "linkage": 5,
+    "name": {
+      "th": "สีหลัก",
+      "en": "Base color"
+    }
+  },
+  {
+    "id": "color.belly",
+    "kind": "color",
+    "linkage": 5,
+    "name": {
+      "th": "สีท้อง",
+      "en": "Belly color"
+    }
+  },
+  {
+    "id": "color.pattern",
+    "kind": "color",
+    "linkage": 2,
+    "name": {
+      "th": "สีลาย",
+      "en": "Pattern color"
+    }
+  },
+  {
+    "id": "color.eye",
+    "kind": "color",
+    "name": {
+      "th": "สีตา",
+      "en": "Eye color"
+    }
+  },
+  {
+    "id": "color.accent",
+    "kind": "color",
+    "name": {
+      "th": "สีเขา/ปีก/เล็บ",
+      "en": "Accent color"
+    }
+  },
+  {
+    "id": "color.mark",
+    "kind": "color",
+    "linkage": 2,
+    "name": {
+      "th": "สีลายแต้ม",
+      "en": "Marking color"
+    }
+  },
+  {
+    "id": "color.inner",
+    "kind": "color",
+    "name": {
+      "th": "สีในหู/อุ้งเท้า",
+      "en": "Inner ear & pad color"
+    }
+  }
+]

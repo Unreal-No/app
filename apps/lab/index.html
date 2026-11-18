@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mochimon Creature Lab</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="gl"></canvas>
+    <div id="app">
+      <header>
+        <h1>Mochimon <span>Creature Lab</span></h1>
+        <p>
+          ห้องทดลองยีนส์ — สุ่ม ผสมพันธุ์ กลายพันธุ์ และอัญเชิญสัตว์จากไฟล์ ·
+          <a href="./stylesheet.html">ดูหน้า Style Sheet</a>
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>สายพันธุ์ตั้งต้น <small>คลิกเพื่อสุ่มตัวใหม่ของสายพันธุ์นั้น</small></h2>
+        <div id="gallery" class="row"></div>
+      </section>
+
+      <div class="columns">
+        <section class="card stage-card">
+          <div class="stage-head">
+            <div>
+              <h2 id="pet-title">—</h2>
+              <div id="pet-tags" class="tags"></div>
+            </div>
+            <div class="stage-actions">
+              <button id="to-a">ตั้งเป็นพ่อแม่ A</button>
+              <button id="to-b">ตั้งเป็นพ่อแม่ B</button>
+            </div>
+          </div>
+          <div id="stage" class="slot stage"></div>
+          <div class="controls">
+            <label
+              >ช่วงวัย
+              <select id="stage-select">
+                <option value="egg">ไข่</option>
+                <option value="baby">เบบี้</option>
+                <option value="child">เด็ก</option>
+                <option value="teen">วัยรุ่น</option>
+                <option value="adult" selected>โตเต็มวัย</option>
+                <option value="elder">ผู้อาวุโส</option>
+              </select>
+            </label>
+            <label
+              >ผอม ↔ อ้วน <input id="fat" type="range" min="0" max="1" step="0.01" value="0.35"
+            /></label>
+            <label
+              >ความฟิต <input id="fitness" type="range" min="0" max="1" step="0.01" value="0.4"
+            /></label>
+            <label
+              >อารมณ์
+              <select id="emotion"></select>
+            </label>
+            <label
+              >ท่าทาง
+              <select id="pose">
+                <option value="auto" selected>อัตโนมัติ</option>
+                <option value="sit">นั่ง</option>
+                <option value="stand">ยืน</option>
+                <option value="lie">หมอบ</option>
+                <option value="curl">นอนขด</option>
+                <option value="play">เล่นลูกบอล</option>
+                <option value="love">อ้อน (กอดหัวใจ)</option>
+              </select>
+            </label>
+            <label
+              >ขน
+              <select id="fur">
+                <option value="off">ปิด</option>
+                <option value="medium">กลาง</option>
+                <option value="high" selected>สูง</option>
+              </select>
+            </label>
+            <label class="check"><input id="collar" type="checkbox" checked /> ปลอกคอ</label>
+            <label class="check"><input id="walk" type="checkbox" /> เดิน</label>
+            <label class="check"><input id="sleep" type="checkbox" /> นอน</label>
+            <label class="check"><input id="spin" type="checkbox" checked /> หมุนดูรอบตัว</label>
+          </div>
+        </section>
+
+        <section class="card info-card">
+          <h2>ยีนส์ที่แสดงออก <small>(ในวงเล็บ = ยีนส์ด้อยที่ซ่อนอยู่)</small></h2>
+          <div id="genes"></div>
+          <h2>นิสัยตั้งต้น</h2>
+          <div id="temper"></div>
+        </section>
+      </div>
+
+      <section class="card">
+        <h2>
+          ผสมพันธุ์
+          <small
+            >อัตรากลายพันธุ์
+            <input id="mutation" type="range" min="0" max="0.3" step="0.005" value="0.025" />
+            <output id="mutation-out">2.5%</output></small
+          >
+        </h2>
+        <div class="breed">
+          <div class="parent">
+            <div id="parent-a" class="slot small"></div>
+            <span id="parent-a-name">A</span>
+          </div>
+          <div class="times">×</div>
+          <div class="parent">
+            <div id="parent-b" class="slot small"></div>
+            <span id="parent-b-name">B</span>
+          </div>
+          <button id="breed" class="primary">ผสมพันธุ์ → ไข่ 6 ฟอง</button>
+        </div>
+        <div id="offspring" class="row"></div>
+      </section>
+
+      <section class="card">
+        <h2>ฉากไดโอรามา <small>ใช้กับโหมดมุมพักผ่อน/ฟาร์ม</small></h2>
+        <div id="habitats" class="row"></div>
+      </section>
+
+      <section class="card">
+        <h2>
+          อัญเชิญจากไฟล์
+          <small>ไฟล์ถูกอ่านในเครื่องเท่านั้น — ใช้แค่ hash, ขนาด, ชนิด, อายุไฟล์ และสีเด่นของรูป</small>
+        </h2>
+        <div id="drop" class="drop">
+          ลากไฟล์อะไรก็ได้มาวางที่นี่ (รูปภาพ เพลง เอกสาร โค้ด …) หรือคลิกเพื่อเลือก · ไฟล์ .glb = ลองชุดชิ้นส่วน 3D (ดู
+          docs/PARTS_GUIDE.md)
+          <input id="file" type="file" hidden />
+        </div>
+        <div id="summon-info" class="tags"></div>
+      </section>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

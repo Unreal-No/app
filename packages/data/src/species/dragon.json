@@ -1,0 +1,173 @@
+{
+  "id": "dragon",
+  "name": {
+    "th": "มังกร",
+    "en": "Dragon"
+  },
+  "lineage": "mythical",
+  "nameParts": {
+    "prefix": ["Dra", "Ryu", "Wyr"],
+    "suffix": ["gon", "ryu", "drake"]
+  },
+  "parts": {
+    "head.shape": [["head.dragon", 10]],
+    "ear.type": [
+      ["ear.fin", 6],
+      ["ear.none", 4]
+    ],
+    "horn.type": [
+      ["horn.curved", 8],
+      ["horn.nub", 2]
+    ],
+    "wing.type": [["wing.bat", 10]],
+    "tail.type": [["tail.dragon", 10]],
+    "limb.type": [
+      ["limb.quad", 6],
+      ["limb.biped", 4]
+    ],
+    "eye.type": [
+      ["eye.slit", 8],
+      ["eye.sparkle", 2]
+    ],
+    "pattern.type": [
+      ["pattern.scales", 7],
+      ["pattern.gradient", 3]
+    ],
+    "special.trait": [["special.none", 1]],
+    "marking.mask": [
+      ["mask.none", 6],
+      ["mask.cape", 4]
+    ],
+    "marking.socks": [
+      ["socks.none", 8],
+      ["socks.short", 2]
+    ],
+    "marking.tail": [
+      ["tailmark.none", 6],
+      ["tailmark.tip", 4]
+    ],
+    "marking.symbol": [
+      ["symbol.none", 25],
+      ["symbol.moon", 1],
+      ["symbol.star", 1]
+    ]
+  },
+  "nums": {
+    "body.size": [0.62, 0.09],
+    "body.length": [0.55, 0.08],
+    "body.girth": [0.5, 0.1],
+    "leg.length": [0.42, 0.08],
+    "head.size": [0.58, 0.07],
+    "horn.size": [0.55, 0.12],
+    "wing.size": [0.65, 0.12],
+    "tail.size": [0.65, 0.1],
+    "eye.size": [0.52, 0.08],
+    "temper.mischief": [0.7, 0.15],
+    "temper.playful": [0.6, 0.2],
+    "temper.shy": [0.25, 0.12],
+    "meta.chronotype": [0.75, 0.12],
+    "voice.pitch": [0.35, 0.1],
+    "fur.length": [0.1, 0.07],
+    "glow.level": [0.8, 0.1]
+  },
+  "colors": {
+    "color.base": [
+      {
+        "l": 0.72,
+        "c": 0.14,
+        "h": 25,
+        "d": 0.6
+      },
+      {
+        "l": 0.72,
+        "c": 0.12,
+        "h": 165,
+        "d": 0.5
+      },
+      {
+        "l": 0.7,
+        "c": 0.12,
+        "h": 290,
+        "d": 0.4
+      },
+      {
+        "l": 0.75,
+        "c": 0.11,
+        "h": 240,
+        "d": 0.3
+      }
+    ],
+    "color.belly": [
+      {
+        "l": 0.92,
+        "c": 0.07,
+        "h": 90,
+        "d": 0.6
+      }
+    ],
+    "color.pattern": [
+      {
+        "l": 0.55,
+        "c": 0.13,
+        "h": 20,
+        "d": 0.5
+      },
+      {
+        "l": 0.55,
+        "c": 0.1,
+        "h": 280,
+        "d": 0.5
+      }
+    ],
+    "color.eye": [
+      {
+        "l": 0.85,
+        "c": 0.17,
+        "h": 95,
+        "d": 0.6
+      },
+      {
+        "l": 0.7,
+        "c": 0.2,
+        "h": 30,
+        "d": 0.5
+      }
+    ],
+    "color.accent": [
+      {
+        "l": 0.9,
+        "c": 0.08,
+        "h": 85,
+        "d": 0.5
+      },
+      {
+        "l": 0.6,
+        "c": 0.12,
+        "h": 350,
+        "d": 0.4
+      }
+    ],
+    "color.mark": [
+      {
+        "l": 0.55,
+        "c": 0.13,
+        "h": 280,
+        "d": 0.5
+      },
+      {
+        "l": 0.55,
+        "c": 0.13,
+        "h": 20,
+        "d": 0.5
+      }
+    ],
+    "color.inner": [
+      {
+        "l": 0.84,
+        "c": 0.09,
+        "h": 350,
+        "d": 0.5
+      }
+    ]
+  }
+}

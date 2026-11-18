@@ -1,0 +1,66 @@
+[
+  {
+    "id": "horn.none",
+    "locus": "horn.type",
+    "dominance": 2,
+    "lineage": "any",
+    "rarity": "common",
+    "name": { "th": "ไม่มีเขา", "en": "None" },
+    "shape": "none"
+  },
+  {
+    "id": "horn.nub",
+    "locus": "horn.type",
+    "dominance": 3,
+    "lineage": "any",
+    "rarity": "uncommon",
+    "name": { "th": "เขาตุ่ม", "en": "Nubs" },
+    "shape": "nub"
+  },
+  {
+    "id": "horn.spiral",
+    "locus": "horn.type",
+    "dominance": 1,
+    "lineage": "mythical",
+    "rarity": "legendary",
+    "name": { "th": "เขายูนิคอร์น", "en": "Spiral horn" },
+    "shape": "spiral"
+  },
+  {
+    "id": "horn.curved",
+    "locus": "horn.type",
+    "dominance": 4,
+    "lineage": "mythical",
+    "rarity": "rare",
+    "name": { "th": "เขามังกร", "en": "Curved horns" },
+    "shape": "curved"
+  },
+  {
+    "id": "horn.trike",
+    "locus": "horn.type",
+    "dominance": 4,
+    "lineage": "prehistoric",
+    "rarity": "rare",
+    "name": { "th": "สามเขา+แผงคอ", "en": "Tri-horn & frill" },
+    "shape": "trike"
+  },
+  {
+    "id": "horn.antler",
+    "locus": "horn.type",
+    "dominance": 2,
+    "lineage": "modern",
+    "rarity": "uncommon",
+    "name": { "th": "เขากวาง", "en": "Antlers" },
+    "shape": "antler"
+  },
+  {
+    "id": "horn.crystal",
+    "locus": "horn.type",
+    "dominance": 1,
+    "lineage": "any",
+    "rarity": "legendary",
+    "mutationOnly": true,
+    "name": { "th": "เขาคริสตัล", "en": "Crystal horn" },
+    "shape": "crystal"
+  }
+]

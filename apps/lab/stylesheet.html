@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mochimon Style Sheet</title>
+    <link rel="stylesheet" href="/src/stylesheet.css" />
+  </head>
+  <body>
+    <canvas id="gl"></canvas>
+    <!-- กระดานขนาดคงที่ 1536×1024 จัดช่องตามภาพอ้างอิง docs/reference/style-sheet.webp -->
+    <main id="board">
+      <section id="hero-panel">
+        <h1>Mochimon <span>Your Desktop Hybrid Pet</span></h1>
+        <div id="hero" class="slot"></div>
+        <p>เพื่อนตัวน้อยที่จะอยู่กับคุณบนหน้าจอ :)</p>
+      </section>
+      <section class="panel" id="p-base">
+        <h2>Base Models (Lineage)</h2>
+        <div class="cells" id="base"></div>
+      </section>
+      <section class="panel" id="p-colors">
+        <h2>Color Variations</h2>
+        <div class="cells" id="colors"></div>
+      </section>
+      <section class="panel" id="p-faces">
+        <h2>Expressions</h2>
+        <div class="cells" id="faces"></div>
+      </section>
+      <section class="panel" id="p-stages">
+        <h2>Body Types &amp; Stages</h2>
+        <div class="cells" id="stages"></div>
+      </section>
+      <section class="panel" id="p-parts">
+        <h2>Features &amp; Parts (ลูกผสม)</h2>
+        <div class="cells" id="parts"></div>
+      </section>
+      <section class="panel" id="p-habitats">
+        <h2>Habitat Style</h2>
+        <div class="cells" id="habitats"></div>
+      </section>
+      <section class="panel" id="p-actions">
+        <h2>In-Game Action</h2>
+        <div class="cells" id="actions"></div>
+      </section>
+    </main>
+    <script type="module" src="/src/stylesheet.ts"></script>
+  </body>
+</html>
