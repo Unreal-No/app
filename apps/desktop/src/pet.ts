@@ -139,6 +139,11 @@ export class PetActor {
     this.built = { stage: nurture.stage, fat: nurture.fat, fitness: nurture.fitness }
   }
 
+  /** สร้างโมเดลใหม่ทันที (เช่น หลังนำเข้าชุดชิ้นส่วน 3D) */
+  remodel(): void {
+    this.rebuild()
+  }
+
   /** คำนวณอารมณ์/นิสัยใหม่จากสถานะ และสร้างโมเดลใหม่เมื่อรูปร่างเปลี่ยนจนเห็นได้ */
   refresh(): void {
     const view = viewPet(this.state)

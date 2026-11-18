@@ -41,6 +41,7 @@ export type TrayAction =
   | 'focus-start'
   | 'summon'
   | 'explore'
+  | 'parts'
   | 'book'
   | 'habitat-none'
   | 'habitat-meadow'
@@ -302,4 +303,25 @@ export function onFileDrop(callback: (event: FileDrop) => void): void {
       else callback({ type: 'over', x, y })
     }),
   )
+}
+
+// ───────── ชุดชิ้นส่วน 3D ─────────
+
+/** เก็บสำเนาไฟล์ .glb ไว้ในโฟลเดอร์ข้อมูลของแอป (ส่งเป็นไบต์ดิบ) */
+export async function storePartFile(bytes: ArrayBuffer): Promise<void> {
+  if (isTauri) await invoke('store_part_pack', new Uint8Array(bytes))
+}
+
+/** ไฟล์ .glb ที่เก็บไว้ (ไม่มี → null) */
+export async function loadPartFile(): Promise<ArrayBuffer | null> {
+  if (!isTauri) return null
+  try {
+    return await invoke<ArrayBuffer>('load_part_pack')
+  } catch {
+    return null
+  }
+}
+
+export async function clearPartFile(): Promise<void> {
+  if (isTauri) await invoke('clear_part_pack').catch(() => undefined)
 }

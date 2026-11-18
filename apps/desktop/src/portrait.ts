@@ -26,6 +26,9 @@ function ensureRenderer(): THREE.WebGLRenderer | null {
   return renderer
 }
 
+/** ล้างรูปย่อทั้งหมด (หน้าตาเปลี่ยน เช่น นำเข้าชุดชิ้นส่วนใหม่) */
+export const clearPortraits = (): void => cache.clear()
+
 const keyOf = (pet: PetState): string =>
   `${pet.id}:${pet.nurture.stage}:${Math.round(pet.nurture.fat * 10)}`
 

@@ -11,6 +11,7 @@
 //! - ดึงลิงก์ปฏิทิน ICS (WebView ดึงเองไม่ได้เพราะ CORS)
 //! - คุยกับสัตว์ด้วย AI: เก็บ API key ใน Windows Credential Manager และส่งคำขอ (key ไม่ออกจากฝั่งนี้)
 //! - แท่นอัญเชิญ: อ่าน hash/ขนาด/อายุของไฟล์ที่ผู้ใช้วาง (ไม่เก็บเนื้อหาไฟล์)
+//! - ชุดชิ้นส่วน 3D (.glb) ที่ผู้ใช้นำเข้า เก็บสำเนาไว้ใช้ครั้งหน้า
 //! - ไฟล์เซฟในโฟลเดอร์ข้อมูลของแอป (เขียนแบบ atomic + สำเนาสำรองหมุนเวียน)
 
 mod alarms;
@@ -18,6 +19,7 @@ mod calendar;
 mod idle;
 mod llm;
 mod overlay;
+mod parts;
 mod platforms;
 mod save;
 mod summon;
@@ -160,7 +162,10 @@ pub fn run() {
             save::load_save,
             save::store_save,
             summon::inspect_file,
-            summon::read_image
+            summon::read_image,
+            parts::store_part_pack,
+            parts::load_part_pack,
+            parts::clear_part_pack
         ])
         .setup(|app| {
             let window = app

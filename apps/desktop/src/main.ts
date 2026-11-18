@@ -45,6 +45,7 @@ import { altarRect, openAltar, summonWith, toggleAltar, updateAltar } from './su
 import { bookRect, openBook, toggleBook, updateBook } from './book'
 import { updateAmbient } from './ambient'
 import { aquariumRect, updateAquarium } from './aquarium'
+import { applyPartFile, partsRect, startParts, toggleParts, updateParts } from './partsImport'
 import { assembleFossil, finishExpeditionsNow, sendOnExpedition } from './adventure'
 import {
   offer,
@@ -201,6 +202,9 @@ onTray((action) => {
       if (traveller) openPanel(traveller, 'explore')
       return
     }
+    case 'parts':
+      toggleParts()
+      return
     case 'summon':
       toggleAltar()
       return
@@ -253,6 +257,7 @@ function reportHitShapes(): void {
       altarRect(),
       bookRect(),
       offerRect(),
+      partsRect(),
     ])
       if (rect) shapes.push(rect)
   }
@@ -301,6 +306,7 @@ function frame(now: number): void {
   updateAltar()
   updateBook()
   updateAmbient()
+  updateParts()
   reportHitShapes()
   canvas.style.cursor = press?.dragging
     ? 'grabbing'
@@ -318,6 +324,8 @@ async function start(): Promise<void> {
   // ฉากมุมพักผ่อน: จากที่เซฟไว้ (หรือ ?habitat=... ตอนทดสอบในเบราว์เซอร์)
   const kind = new URLSearchParams(location.search).get('habitat') ?? save?.habitat
   if (HABITAT_KINDS.includes(kind as HabitatKind)) setHabitat(kind as HabitatKind)
+  // ชุดชิ้นส่วน 3D ที่นำเข้าไว้ต้องพร้อมก่อนสร้างตัวสัตว์
+  await startParts()
   if (save) restore(save)
   else addPet(firstPet()).say('สวัสดี! โมจิเอง', 4)
   saveNow()
@@ -354,6 +362,7 @@ async function start(): Promise<void> {
       visitor: visitorActor,
       visitorInfo,
       aquariumRect,
+      applyPartFile,
       /** สร้างสัตว์สายพันธุ์ที่ระบุบนจอ (ใช้ทดสอบ) */
       spawn: (species: string, stage: LifeStage = 'adult', x?: number) =>
         addPet(
