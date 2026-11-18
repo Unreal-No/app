@@ -21,7 +21,7 @@ import {
   type MutationEvent,
   type Nurture,
 } from '@mochimon/core'
-import type { PoseName } from '@mochimon/creature'
+import { loadPartPack, setPartPack, type PoseName } from '@mochimon/creature'
 import { HABITAT_KINDS, HABITAT_NAME_TH } from '@mochimon/habitat'
 import { extractPalette, hashFile } from './palette'
 import { Slot } from './slot'
@@ -222,8 +222,29 @@ $<HTMLInputElement>('spin').addEventListener('input', (e) => {
   stage.spin = (e.target as HTMLInputElement).checked
 })
 
+// ───────── ชุดชิ้นส่วน 3D จากไฟล์ .glb ─────────
+async function importParts(data: ArrayBuffer, label: string): Promise<void> {
+  let tags: string[]
+  try {
+    const pack = await loadPartPack(data)
+    setPartPack(pack)
+    tags = [
+      `ชุดชิ้นส่วน: ${label}`,
+      ...pack.report.used.map((u) => `✅ ${u.key} (${u.name})`),
+      ...pack.report.unknown.map((u) => `❓ ไม่รู้จัก: ${u}`),
+      ...pack.report.problems.map((u) => `⚠️ ${u}`),
+    ]
+  } catch (error) {
+    tags = [`⚠️ ${(error as Error).message}`]
+  }
+  // สร้างทุกช่องใหม่ด้วยชิ้นส่วนชุดใหม่
+  for (const slot of [stage, ...slots]) if (slot.genome) slot.set(slot.genome, slot.nurture)
+  $('summon-info').innerHTML = tags.map((t) => `<span class="tag">${t}</span>`).join('')
+}
+
 // ───────── อัญเชิญจากไฟล์ ─────────
 async function summon(file: File): Promise<void> {
+  if (/\.glb$/i.test(file.name)) return importParts(await file.arrayBuffer(), file.name)
   const ext = file.name.includes('.') ? (file.name.split('.').pop() ?? '') : ''
   const [hashHex, palette] = await Promise.all([hashFile(file), extractPalette(file)])
   const ageYears = Math.max(0, (Date.now() - file.lastModified) / (365.25 * 24 * 3600 * 1000))
@@ -302,4 +323,15 @@ function loop(): void {
 loop()
 
 // สำหรับการทดสอบอัตโนมัติ
-Object.assign(window, { __lab: { select, setParent, breedNow, stage, slots, core } })
+Object.assign(window, {
+  __lab: {
+    select,
+    setParent,
+    breedNow,
+    stage,
+    slots,
+    core,
+    importParts,
+    clearParts: () => setPartPack(null),
+  },
+})

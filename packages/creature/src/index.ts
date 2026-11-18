@@ -106,3 +106,13 @@ export function createBlobShadow(radius: number, opacity = 0.16): THREE.Mesh {
   shadow.scale.set(1, 0.8, 1)
   return shadow
 }
+export {
+  activePartPack,
+  knownShapes,
+  loadPartPack,
+  MAX_PACK_BYTES,
+  PART_SLOTS,
+  setPartPack,
+  type PackReport,
+  type PartPack,
+} from './parts/partPack'

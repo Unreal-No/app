@@ -5,6 +5,7 @@ import { createFaceMaterials, type FaceMaterials } from '../material/face'
 import { createPlushMaterials, type PlushMaterials } from '../material/plush'
 import { projectedCap } from './face'
 import { FieldGroup } from './field'
+import { partFromPack, type PartModel } from '../parts/partPack'
 import {
   ball,
   batWingShape,
@@ -465,6 +466,38 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
   const earLen = R * (ep.len ?? 0.5) * s.earScale
   const earW = R * (ep.width ?? 0.4)
   const earPaint: PaintFn = () => [0, mask === 'none' || mask === 'bandit' ? 0 : 1]
+  /**
+   * ชิ้นส่วนจากไฟล์ .glb: ห่อด้วยวัสดุตุ๊กตาเดิม (สีตามยีนส์ + ขน) แล้วขยายตามขนาดจากยีนส์
+   * geometry ถูกคัดลอกทุกครั้ง เพราะตัวสร้างจะเขียนข้อมูลสี/ขนลงไปและทิ้งเมื่อสัตว์ถูกลบ
+   */
+  const fromFile = (
+    model: PartModel,
+    scale: number,
+    opts: { paint?: PaintFn; fur?: number; tip: (l: THREE.Vector3) => number },
+  ): THREE.Group => {
+    const holder = group()
+    holder.scale.setScalar(scale)
+    for (const piece of model.pieces) {
+      const material =
+        piece.role === 'texture' && piece.material
+          ? piece.material
+          : piece.role === 'inner'
+            ? mats.inner
+            : piece.role === 'accent'
+              ? mats.accent
+              : piece.role === 'membrane'
+                ? mats.membrane
+                : mats.skin
+      holder.add(
+        mesh(piece.geometry.clone(), material, {
+          paint: piece.role === 'skin' ? opts.paint : undefined,
+          fur: piece.role === 'skin' && piece.fur ? (opts.fur ?? 0.3) : 0,
+          tip: opts.tip,
+        }),
+      )
+    }
+    return holder
+  }
   const addEars = (
     x: number,
     y: number,
@@ -501,42 +534,48 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
     inn.position.set(0, earLen * 0.04, earW * 0.2 * flat + 0.012 + mats.furLength * 0.25)
     return [out, inn]
   }
-  switch (p.parts.ears.shape) {
-    case 'point':
-      addEars(0.56, 0.66, 0.02, [-0.08, 0.15, -0.42], () =>
-        earPair(
-          bentCone(earW * 0.92, earLen * 1.42, 0.06),
-          bentCone(earW * 0.92, earLen * 1.42, 0.06),
-          0.42,
-        ),
-      )
-      break
-    case 'long':
-      addEars(0.34, 0.8, -0.05, [-0.12, 0.1, -0.16], () =>
-        earPair(standingCapsule(earW * 0.85, earLen), standingCapsule(earW * 0.85, earLen), 0.42),
-      )
-      break
-    case 'round':
-      addEars(0.66, 0.66, 0, [0, 0.1, 0], () =>
-        earPair(ball(earW * 0.78 * s.earScale), ball(earW * 0.78 * s.earScale), 0.5),
-      )
-      break
-    case 'floppy':
-      addEars(0.8, 0.5, 0, [0.1, 0, -0.28], () =>
-        earPair(hangingCapsule(earW * 0.8, earLen), hangingCapsule(earW * 0.8, earLen), 0.42),
-      )
-      break
-    case 'fin':
-      addEars(0.8, 0.28, -0.1, [0, -0.5, 0.5], () => [
-        mesh(slab(finShape(), earLen, R * 0.06), mats.membrane, { tip: (l) => l.x / earLen }),
-      ])
-      break
-    case 'tuft':
-      addEars(0.2, 0.9, -0.05, [-0.5, 0, -0.3], () => [
-        mesh(bentCone(earW * 0.5, earLen, 0.3, 8), mats.skin, { paint: earPaint, fur: 1 }),
-      ])
-      break
-  }
+  const earFile = partFromPack('ears', p.parts.ears.shape)
+  if (earFile)
+    addEars(0.56, 0.68, 0.02, [0, 0, 0], () => [
+      fromFile(earFile, R * s.earScale, { paint: earPaint, fur: 0.22, tip: (l) => l.y }),
+    ])
+  else
+    switch (p.parts.ears.shape) {
+      case 'point':
+        addEars(0.56, 0.66, 0.02, [-0.08, 0.15, -0.42], () =>
+          earPair(
+            bentCone(earW * 0.92, earLen * 1.42, 0.06),
+            bentCone(earW * 0.92, earLen * 1.42, 0.06),
+            0.42,
+          ),
+        )
+        break
+      case 'long':
+        addEars(0.34, 0.8, -0.05, [-0.12, 0.1, -0.16], () =>
+          earPair(standingCapsule(earW * 0.85, earLen), standingCapsule(earW * 0.85, earLen), 0.42),
+        )
+        break
+      case 'round':
+        addEars(0.66, 0.66, 0, [0, 0.1, 0], () =>
+          earPair(ball(earW * 0.78 * s.earScale), ball(earW * 0.78 * s.earScale), 0.5),
+        )
+        break
+      case 'floppy':
+        addEars(0.8, 0.5, 0, [0.1, 0, -0.28], () =>
+          earPair(hangingCapsule(earW * 0.8, earLen), hangingCapsule(earW * 0.8, earLen), 0.42),
+        )
+        break
+      case 'fin':
+        addEars(0.8, 0.28, -0.1, [0, -0.5, 0.5], () => [
+          mesh(slab(finShape(), earLen, R * 0.06), mats.membrane, { tip: (l) => l.x / earLen }),
+        ])
+        break
+      case 'tuft':
+        addEars(0.2, 0.9, -0.05, [-0.5, 0, -0.3], () => [
+          mesh(bentCone(earW * 0.5, earLen, 0.3, 8), mats.skin, { paint: earPaint, fur: 1 }),
+        ])
+        break
+    }
 
   // ═════════ เขา ═════════
   const hs = s.hornScale
@@ -563,64 +602,73 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
       y * skull.y,
       z * R,
     )
-  switch (p.parts.horns.shape) {
-    case 'nub':
-      hornPair(0.3, 0.88, 0.2, [0.2, 0, -0.25], () => horn(0.12, 0.22, 0))
-      break
-    case 'spiral': {
-      const h = horn(0.1, 0.95, -0.06)
+  const hornFile = partFromPack('horns', p.parts.horns.shape)
+  if (hornFile) {
+    const make = () => fromFile(hornFile, R * hs, { fur: 0, tip: (l) => l.y })
+    if (hornFile.center) {
+      const h = make()
       h.position.set(0, skull.y * 0.86, R * 0.42)
-      h.rotation.x = 0.5
       rig.head.add(h)
-      break
+    } else hornPair(0.3, 0.86, 0.15, [0, 0, 0], make)
+  } else
+    switch (p.parts.horns.shape) {
+      case 'nub':
+        hornPair(0.3, 0.88, 0.2, [0.2, 0, -0.25], () => horn(0.12, 0.22, 0))
+        break
+      case 'spiral': {
+        const h = horn(0.1, 0.95, -0.06)
+        h.position.set(0, skull.y * 0.86, R * 0.42)
+        h.rotation.x = 0.5
+        rig.head.add(h)
+        break
+      }
+      case 'crystal': {
+        const g = new THREE.OctahedronGeometry(R * 0.2 * hs)
+        g.scale(0.7, 1.9, 0.7)
+        const h = mesh(g, mats.accent, { tip: (l) => l.y / (R * 0.4 * hs) })
+        h.position.set(0, skull.y * 1.1, R * 0.34)
+        h.rotation.x = 0.35
+        rig.head.add(h)
+        break
+      }
+      case 'curved':
+        // เขาโค้งเรียบชี้ขึ้น-เข้าหากันเล็กน้อย
+        hornPair(0.28, 0.84, 0.12, [-0.25, 0, -0.5], () => {
+          const h = horn(0.24, 0.7, 0.55)
+          h.rotation.y = Math.PI / 2
+          return h
+        })
+        break
+      case 'antler':
+        hornPair(0.3, 0.84, 0.15, [-0.1, 0, -0.45], () => {
+          const g = group()
+          g.add(horn(0.1, 0.95, 0.15))
+          const b1 = horn(0.075, 0.42, 0)
+          b1.position.y = R * 0.32 * hs
+          b1.rotation.z = -0.95
+          const b2 = horn(0.07, 0.36, 0)
+          b2.position.y = R * 0.58 * hs
+          b2.rotation.z = 0.85
+          g.add(b1, b2)
+          return g
+        })
+        break
+      case 'trike': {
+        hornPair(0.36, 0.62, 0.5, [0.95, 0, -0.2], () => horn(0.1, 0.62, 0.25))
+        const nose = horn(0.09, 0.3, 0)
+        nose.position.set(0, R * 0.2, R * (0.9 + snout * 0.9))
+        nose.rotation.x = 0.4
+        rig.head.add(nose)
+        const frill = mesh(ball(skull.x * 1.2, R * 1.1, R * 0.2), mats.skin, {
+          paint: () => [0.35, mask === 'cape' ? 1 : 0],
+          fur: 0,
+        })
+        frill.position.set(0, R * 0.3, -R * 0.5)
+        frill.rotation.x = -0.35
+        rig.head.add(frill)
+        break
+      }
     }
-    case 'crystal': {
-      const g = new THREE.OctahedronGeometry(R * 0.2 * hs)
-      g.scale(0.7, 1.9, 0.7)
-      const h = mesh(g, mats.accent, { tip: (l) => l.y / (R * 0.4 * hs) })
-      h.position.set(0, skull.y * 1.1, R * 0.34)
-      h.rotation.x = 0.35
-      rig.head.add(h)
-      break
-    }
-    case 'curved':
-      // เขาโค้งเรียบชี้ขึ้น-เข้าหากันเล็กน้อย
-      hornPair(0.28, 0.84, 0.12, [-0.25, 0, -0.5], () => {
-        const h = horn(0.24, 0.7, 0.55)
-        h.rotation.y = Math.PI / 2
-        return h
-      })
-      break
-    case 'antler':
-      hornPair(0.3, 0.84, 0.15, [-0.1, 0, -0.45], () => {
-        const g = group()
-        g.add(horn(0.1, 0.95, 0.15))
-        const b1 = horn(0.075, 0.42, 0)
-        b1.position.y = R * 0.32 * hs
-        b1.rotation.z = -0.95
-        const b2 = horn(0.07, 0.36, 0)
-        b2.position.y = R * 0.58 * hs
-        b2.rotation.z = 0.85
-        g.add(b1, b2)
-        return g
-      })
-      break
-    case 'trike': {
-      hornPair(0.36, 0.62, 0.5, [0.95, 0, -0.2], () => horn(0.1, 0.62, 0.25))
-      const nose = horn(0.09, 0.3, 0)
-      nose.position.set(0, R * 0.2, R * (0.9 + snout * 0.9))
-      nose.rotation.x = 0.4
-      rig.head.add(nose)
-      const frill = mesh(ball(skull.x * 1.2, R * 1.1, R * 0.2), mats.skin, {
-        paint: () => [0.35, mask === 'cape' ? 1 : 0],
-        fur: 0,
-      })
-      frill.position.set(0, R * 0.3, -R * 0.5)
-      frill.rotation.x = -0.35
-      rig.head.add(frill)
-      break
-    }
-  }
 
   // ═════════ ปีก / ครีบข้าง ═════════
   const span = (p.parts.wings.params.span ?? 1) * s.wingScale * (rx + ry) * 1.15
@@ -670,33 +718,36 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
     }
     return out
   }
-  switch (p.parts.wings.shape) {
-    case 'feather':
-      addWings(upright ? [0.1, -0.5, -0.2] : [0.25, -0.25, 0.5], featherWing)
-      break
-    case 'bat':
-      addWings(upright ? [0, -0.75, 0.1] : [0, -0.7, 0.4], () => [
-        mesh(slab(batWingShape(), span * (upright ? 0.85 : 1.05), 0.035), mats.membrane, {
-          tip: (l) => l.x / span,
-        }),
-      ])
-      break
-    case 'fairy':
-      addWings(upright ? [0, -0.6, 0.15] : [0, -0.55, 0.3], () => [
-        mesh(slab(petalShape(0.5, 0.3, 0.5, 0.22, 0.4), span, 0.012), mats.membrane, {
-          tip: (l) => l.x / span,
-        }),
-        mesh(slab(petalShape(0.36, -0.16, 0.36, 0.15, -0.35), span, 0.012), mats.membrane, {
-          tip: (l) => l.x / span,
-        }),
-      ])
-      break
-    case 'fin':
-      addWings([0.3, -0.7, -0.35], () => [
-        mesh(slab(finShape(), span * 0.8, 0.04), mats.membrane, { tip: (l) => l.x / span }),
-      ])
-      break
-  }
+  const wingFile = partFromPack('wings', p.parts.wings.shape)
+  if (wingFile) addWings([0, 0, 0], () => [fromFile(wingFile, span, { fur: 0.2, tip: (l) => l.x })])
+  else
+    switch (p.parts.wings.shape) {
+      case 'feather':
+        addWings(upright ? [0.1, -0.5, -0.2] : [0.25, -0.25, 0.5], featherWing)
+        break
+      case 'bat':
+        addWings(upright ? [0, -0.75, 0.1] : [0, -0.7, 0.4], () => [
+          mesh(slab(batWingShape(), span * (upright ? 0.85 : 1.05), 0.035), mats.membrane, {
+            tip: (l) => l.x / span,
+          }),
+        ])
+        break
+      case 'fairy':
+        addWings(upright ? [0, -0.6, 0.15] : [0, -0.55, 0.3], () => [
+          mesh(slab(petalShape(0.5, 0.3, 0.5, 0.22, 0.4), span, 0.012), mats.membrane, {
+            tip: (l) => l.x / span,
+          }),
+          mesh(slab(petalShape(0.36, -0.16, 0.36, 0.15, -0.35), span, 0.012), mats.membrane, {
+            tip: (l) => l.x / span,
+          }),
+        ])
+        break
+      case 'fin':
+        addWings([0.3, -0.7, -0.35], () => [
+          mesh(slab(finShape(), span * 0.8, 0.04), mats.membrane, { tip: (l) => l.x / span }),
+        ])
+        break
+    }
 
   // ═════════ หาง ═════════
   const tp = p.parts.tail.params
@@ -754,64 +805,75 @@ export function buildCreature(p: Phenotype, s: BodySpec, opts: BuildOptions = {}
     return tip
   }
   const baseR = Math.min(ry, rx) * 0.5
-  switch (p.parts.tail.shape) {
-    case 'nub':
-      chain(1, () => baseR * 0.4, 0.3)
-      break
-    case 'thin':
-      chain(7, (t) => lerp(0.055, 0.042, t), 0.24, 0, { fur: 0.6 })
-      break
-    case 'fluffy':
-      // หางฟูทรงหยดน้ำ: โคนเรียว กลางป่อง ปลายมน
-      chain(6, (t) => baseR * (0.8 + 1.75 * Math.sin(Math.PI * Math.pow(t, 0.7) * 0.9)), 0.1, 0, {
-        fur: 2.1,
-      })
-      break
-    case 'twin':
-      chain(7, (t) => lerp(0.05, 0.038, t), 0.24, 0.38, { fur: 0.6 })
-      chain(7, (t) => lerp(0.05, 0.038, t), 0.24, -0.38, { fur: 0.6 })
-      break
-    case 'pom':
-      chain(1, () => 0.12 * s.tailScale, 0.2, 0, { belly: 1, fur: 1.8 })
-      break
-    case 'thick':
-      chain(6, (t) => lerp(baseR * 0.95, 0.035, t), 0.07, 0, { fur: 0.5 })
-      break
-    case 'spade': {
-      const tip = chain(7, (t) => lerp(baseR * 0.7, 0.03, t), 0.12, 0, { fur: 0.4 })
-      const spade = mesh(slab(spadeShape(), 0.2 * s.tailScale, 0.04), mats.accent, {
-        tip: (l) => l.x / 0.2,
-      })
-      spade.rotation.set(0, Math.PI / 2, 0)
-      spade.position.z = 0.03
-      tip.add(spade)
-      break
+  const tailFile = partFromPack('tail', p.parts.tail.shape)
+  if (tailFile) {
+    // หางจากไฟล์เป็นชิ้นแข็งชิ้นเดียว ติดกับข้อแรกของโซ่ 3 ข้อ (ข้อที่เหลือว่าง) —
+    // ท่านั่งที่ "พันหางมาข้างหน้า" จึงหมุนชิ้นนี้แค่ 1/3 ไม่สะบัดไปด้านหน้าทั้งท่อน
+    const joints = [group(), group(), group()]
+    tailBase.add(joints[0]!)
+    joints[0]!.add(joints[1]!)
+    joints[1]!.add(joints[2]!)
+    joints[0]!.add(fromFile(tailFile, tailLen, { paint: tailPaint, fur: 0.8, tip: (l) => -l.z }))
+    rig.tails.push({ base: tailBase, joints, rest: [0.35, 0, 0], yaw: 0 })
+  } else
+    switch (p.parts.tail.shape) {
+      case 'nub':
+        chain(1, () => baseR * 0.4, 0.3)
+        break
+      case 'thin':
+        chain(7, (t) => lerp(0.055, 0.042, t), 0.24, 0, { fur: 0.6 })
+        break
+      case 'fluffy':
+        // หางฟูทรงหยดน้ำ: โคนเรียว กลางป่อง ปลายมน
+        chain(6, (t) => baseR * (0.8 + 1.75 * Math.sin(Math.PI * Math.pow(t, 0.7) * 0.9)), 0.1, 0, {
+          fur: 2.1,
+        })
+        break
+      case 'twin':
+        chain(7, (t) => lerp(0.05, 0.038, t), 0.24, 0.38, { fur: 0.6 })
+        chain(7, (t) => lerp(0.05, 0.038, t), 0.24, -0.38, { fur: 0.6 })
+        break
+      case 'pom':
+        chain(1, () => 0.12 * s.tailScale, 0.2, 0, { belly: 1, fur: 1.8 })
+        break
+      case 'thick':
+        chain(6, (t) => lerp(baseR * 0.95, 0.035, t), 0.07, 0, { fur: 0.5 })
+        break
+      case 'spade': {
+        const tip = chain(7, (t) => lerp(baseR * 0.7, 0.03, t), 0.12, 0, { fur: 0.4 })
+        const spade = mesh(slab(spadeShape(), 0.2 * s.tailScale, 0.04), mats.accent, {
+          tip: (l) => l.x / 0.2,
+        })
+        spade.rotation.set(0, Math.PI / 2, 0)
+        spade.position.z = 0.03
+        tip.add(spade)
+        break
+      }
+      case 'flowy':
+        chain(5, (t) => 0.05 + Math.sin(t * Math.PI * 0.85) * 0.075, -0.2, 0, { mat: mats.accent })
+        break
+      case 'fan': {
+        const tip = chain(1, () => baseR * 0.35, 0.5)
+        const fan = mesh(slab(fanShape(), tailLen * 1.1, 0.04), mats.skin, {
+          paint: tailPaint,
+          fur: 0,
+        })
+        fan.rotation.x = -Math.PI / 2 + 0.2
+        fan.position.z = tailLen * 0.7
+        tip.add(fan)
+        break
+      }
+      case 'fish': {
+        const tip = chain(3, (t) => lerp(baseR * 0.75, baseR * 0.28, t), 0, 0, { fur: 0 })
+        const fin = mesh(slab(fishTailShape(), tailLen * 0.85, 0.035), mats.membrane, {
+          tip: (l) => l.x / (tailLen * 0.85),
+        })
+        fin.rotation.y = Math.PI / 2
+        fin.position.z = tailLen * 0.12
+        tip.add(fin)
+        break
+      }
     }
-    case 'flowy':
-      chain(5, (t) => 0.05 + Math.sin(t * Math.PI * 0.85) * 0.075, -0.2, 0, { mat: mats.accent })
-      break
-    case 'fan': {
-      const tip = chain(1, () => baseR * 0.35, 0.5)
-      const fan = mesh(slab(fanShape(), tailLen * 1.1, 0.04), mats.skin, {
-        paint: tailPaint,
-        fur: 0,
-      })
-      fan.rotation.x = -Math.PI / 2 + 0.2
-      fan.position.z = tailLen * 0.7
-      tip.add(fan)
-      break
-    }
-    case 'fish': {
-      const tip = chain(3, (t) => lerp(baseR * 0.75, baseR * 0.28, t), 0, 0, { fur: 0 })
-      const fin = mesh(slab(fishTailShape(), tailLen * 0.85, 0.035), mats.membrane, {
-        tip: (l) => l.x / (tailLen * 0.85),
-      })
-      fin.rotation.y = Math.PI / 2
-      fin.position.z = tailLen * 0.12
-      tip.add(fin)
-      break
-    }
-  }
 
   // ═════════ ขา / แขน / ครีบ ═════════
   const limb = p.parts.limbs.shape
