@@ -51,7 +51,8 @@ pub fn build(app: &App) -> tauri::Result<()> {
         .checked(app.autolaunch().is_enabled().unwrap_or(false))
         .build(app)?;
     let reroll = MenuItemBuilder::with_id("reroll", "รับไข่ใบใหม่").build(app)?;
-    let recall = MenuItemBuilder::with_id("farm-recall", "เรียกกลับจากฟาร์ม").build(app)?;
+    let summon = MenuItemBuilder::with_id("summon", "อัญเชิญจากไฟล์…").build(app)?;
+    let book = MenuItemBuilder::with_id("book", "สมุดฟาร์ม (ฟาร์ม · เครือญาติ · สมุดสะสม)").build(app)?;
 
     // โหมดฉากหลัง: กลมกลืน (ไม่มีฉาก) หรือมุมพักผ่อนพร้อมไดโอรามา
     let habitat = SubmenuBuilder::new(app, "ฉากมุมพักผ่อน")
@@ -69,7 +70,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
         .separator()
         .items(&[&call, &feed, &play, &panel])
         .separator()
-        .items(&[&reroll, &recall])
+        .items(&[&summon, &book, &reroll])
         .separator()
         .items(&[&quiet, &visible, &perching, &hide_on_fullscreen])
         .item(&habitat)
@@ -144,7 +145,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
                 };
             }
         }
-        id @ ("call" | "feed" | "play" | "panel" | "reroll" | "farm-recall" | "assistant"
+        id @ ("call" | "feed" | "play" | "panel" | "reroll" | "summon" | "book" | "assistant"
         | "chat" | "focus-start") => {
             let _ = app.emit("tray", id);
         }

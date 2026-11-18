@@ -10,6 +10,7 @@
 //! - แจ้งเตือนนัดด้วย Windows toast เมื่อหน้าต่างสัตว์ถูกซ่อน และบอกเวลาที่ผู้ใช้ไม่ได้แตะเครื่อง
 //! - ดึงลิงก์ปฏิทิน ICS (WebView ดึงเองไม่ได้เพราะ CORS)
 //! - คุยกับสัตว์ด้วย AI: เก็บ API key ใน Windows Credential Manager และส่งคำขอ (key ไม่ออกจากฝั่งนี้)
+//! - แท่นอัญเชิญ: อ่าน hash/ขนาด/อายุของไฟล์ที่ผู้ใช้วาง (ไม่เก็บเนื้อหาไฟล์)
 //! - ไฟล์เซฟในโฟลเดอร์ข้อมูลของแอป (เขียนแบบ atomic + สำเนาสำรองหมุนเวียน)
 
 mod alarms;
@@ -19,6 +20,7 @@ mod llm;
 mod overlay;
 mod platforms;
 mod save;
+mod summon;
 mod tray;
 
 use std::sync::{
@@ -149,7 +151,9 @@ pub fn run() {
             llm::claude_messages,
             llm::ollama_chat,
             save::load_save,
-            save::store_save
+            save::store_save,
+            summon::inspect_file,
+            summon::read_image
         ])
         .setup(|app| {
             let window = app
