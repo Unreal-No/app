@@ -78,7 +78,11 @@ export function pickName(rng: Rng, taken: string[]): string {
 
 /** สัตว์ตัวแรกของผู้เล่น: "โมจิ" ตัวเอกแมว×มังกร */
 export function firstPet(): PetState {
-  return createPet('โมจิ', createMochi(), { stage: 'child', fat: 0.38, fitness: 0.4 })
+  return {
+    ...createPet('โมจิ', createMochi(), { stage: 'child', fat: 0.38, fitness: 0.4 }),
+    bornAt: Date.now(),
+    origin: { kind: 'starter' },
+  }
 }
 
 /** ไข่ใบใหม่จากเมนู: สุ่มสายพันธุ์ มีโอกาสเป็นลูกผสมข้ามสายพันธุ์ — ต้องรอฟัก */

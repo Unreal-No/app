@@ -37,6 +37,8 @@ export type TrayAction =
   | 'assistant'
   | 'chat'
   | 'focus-start'
+  | 'summon'
+  | 'book'
   | 'habitat-none'
   | 'habitat-meadow'
   | 'habitat-cloud'
@@ -253,4 +255,48 @@ export async function ollamaChat(baseUrl: string, body: object): Promise<unknown
   })
   if (!response.ok) throw new Error(`Ollama ตอบผิดพลาด (สถานะ ${response.status})`)
   return response.json()
+}
+
+// ───────── แท่นอัญเชิญ: ไฟล์จากเครื่อง ─────────
+
+/** ลายนิ้วมือของไฟล์ที่ฝั่ง Rust อ่าน (ไม่มีเนื้อหาไฟล์) */
+export interface FileInfo {
+  hash: string
+  size: number
+  ext: string
+  ageYears: number
+  /** อ่านสีจากรูปได้ */
+  image: boolean
+}
+
+/** อ่าน hash/ขนาด/อายุของไฟล์จาก path (ใช้กับไฟล์ที่ลากมาวาง) */
+export async function inspectFile(path: string): Promise<FileInfo> {
+  return invoke<FileInfo>('inspect_file', { path })
+}
+
+/** ไบต์ของรูปภาพ (ให้ WebView ย่อเพื่อหาสีเด่น) */
+export async function readImage(path: string): Promise<ArrayBuffer> {
+  return invoke<ArrayBuffer>('read_image', { path })
+}
+
+export type FileDrop =
+  | { type: 'over'; x: number; y: number }
+  | { type: 'drop'; x: number; y: number; paths: string[] }
+  | { type: 'leave' }
+
+/**
+ * ไฟล์ที่ผู้ใช้ลากมาจาก Explorer (เฉพาะแอปจริง — ในเบราว์เซอร์ใช้ HTML drag & drop ที่แท่นแทน)
+ * ตำแหน่งแปลงเป็น CSS px แล้ว
+ */
+export function onFileDrop(callback: (event: FileDrop) => void): void {
+  if (!isTauri) return
+  void import('@tauri-apps/api/webview').then(({ getCurrentWebview }) =>
+    getCurrentWebview().onDragDropEvent(({ payload }) => {
+      if (payload.type === 'leave') return callback({ type: 'leave' })
+      const x = payload.position.x / devicePixelRatio
+      const y = payload.position.y / devicePixelRatio
+      if (payload.type === 'drop') callback({ type: 'drop', x, y, paths: payload.paths })
+      else callback({ type: 'over', x, y })
+    }),
+  )
 }

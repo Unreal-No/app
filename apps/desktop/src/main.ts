@@ -1,3 +1,4 @@
+import { geneDb } from '@mochimon/core'
 import { HABITAT_KINDS, type HabitatKind } from '@mochimon/habitat'
 import * as assist from './assist'
 import { focusChipRect, onFocusChipClick, startFocusSession, tickAssistant } from './assist'
@@ -17,8 +18,10 @@ import {
   addPet,
   callAll,
   care,
+  collection,
   companion,
   farm,
+  onDiscovery,
   pets,
   recallFromFarm,
   setCompanion,
@@ -37,6 +40,8 @@ import {
 } from './panel'
 import type { PetActor } from './pet'
 import { signRect, updateSigns } from './signs'
+import { altarRect, openAltar, summonWith, toggleAltar, updateAltar } from './summon'
+import { bookRect, openBook, toggleBook, updateBook } from './book'
 import { chatRect, openChat, updateChatPanel } from './chatPanel'
 import { firstPet, loadSave } from './store'
 import {
@@ -112,6 +117,22 @@ onPlatforms(setWindows)
 addEventListener('keydown', () => (cursor.movedAt = performance.now()))
 onFocusChipClick(() => openAssistant('focus'))
 
+// ฟักแล้วเห็นลักษณะใหม่ / โตจนยีนส์แฝงเปิดเผย → บอกผู้ใช้ว่าสมุดสะสมมีของใหม่
+onDiscovery((actor, found, species) => {
+  // "ไม่มีเขา/ไม่มีปีก" ถูกบันทึกลงสมุดด้วย แต่ไม่ต้องประกาศ
+  const names = [
+    ...species.map((id) => `สายพันธุ์${geneDb.species[id]?.name.th ?? id}`),
+    ...found
+      .filter((def) => def.shape !== 'none')
+      .map((def) => (def.mutationOnly ? `✨${def.name.th}` : def.name.th)),
+  ]
+  if (names.length === 0) return
+  const shown =
+    names.slice(0, 3).join(', ') + (names.length > 3 ? ` และอีก ${names.length - 3}` : '')
+  actor.float('✨', 'note')
+  actor.say(`ค้นพบ: ${shown}!`, 5)
+})
+
 // ───────── เมนู tray ─────────
 onTray((action) => {
   switch (action) {
@@ -149,6 +170,12 @@ onTray((action) => {
     case 'chat':
       openChat()
       return
+    case 'summon':
+      toggleAltar()
+      return
+    case 'book':
+      toggleBook()
+      return
     case 'focus-start':
       startFocusSession()
       return
@@ -181,7 +208,15 @@ function reportHitShapes(): void {
         return { x: Math.round(hit.x), y: Math.round(hit.y), r: Math.round(hit.r) }
       })
   if (!press?.dragging) {
-    for (const rect of [panelRect(), assistantRect(), signRect(), focusChipRect(), chatRect()])
+    for (const rect of [
+      panelRect(),
+      assistantRect(),
+      signRect(),
+      focusChipRect(),
+      chatRect(),
+      altarRect(),
+      bookRect(),
+    ])
       if (rect) shapes.push(rect)
   }
   const key = JSON.stringify(shapes)
@@ -223,6 +258,8 @@ function frame(now: number): void {
   updateSigns()
   updateAssistant()
   updateChatPanel()
+  updateAltar()
+  updateBook()
   reportHitShapes()
   canvas.style.cursor = press?.dragging
     ? 'grabbing'
@@ -264,6 +301,10 @@ async function start(): Promise<void> {
       companion: () => companion,
       setCompanion,
       mode,
+      collection,
+      openAltar,
+      openBook,
+      summonWith,
     },
   })
   requestAnimationFrame(frame)

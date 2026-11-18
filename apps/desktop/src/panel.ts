@@ -13,7 +13,6 @@ import { setKeyboardFocus } from './bridge'
 import {
   allNames,
   care,
-  farm,
   hasRoom,
   partnersFor,
   pets,
@@ -25,6 +24,7 @@ import type { PetActor } from './pet'
 import { button, el, rectOf } from './ui'
 import { openAssistant } from './assistant'
 import { openChat } from './chatPanel'
+import { birthdayText, openBook, originText } from './book'
 import { pickName } from './store'
 import { NEED_TH, STAGE_TH } from './text'
 import { cursor, layout, rng, uiLayer } from './world'
@@ -113,9 +113,6 @@ function beginPairing(a: PetActor, b: PetActor): void {
   startPairing(a, b)
 }
 
-const nameOf = (id: string): string =>
-  pets.find((p) => p.state.id === id)?.state.name ?? farm.find((p) => p.id === id)?.name ?? '?'
-
 function startRename(nameNode: HTMLElement): void {
   if (!actor || renaming) return
   const target = actor
@@ -184,10 +181,8 @@ function renderCare(target: PetActor): void {
   root.append(
     el('div', 'panel-sub', `${speciesLabel(target.state.genome).th} · ${STAGE_TH[stage]}`),
   )
-  if (target.state.parents) {
-    const [a, b] = target.state.parents
-    root.append(el('div', 'panel-sub', `พ่อแม่: ${nameOf(a)} × ${nameOf(b)}`))
-  }
+  const origin = [originText(target.state), birthdayText(target.state)].filter(Boolean).join(' · ')
+  if (origin) root.append(el('div', 'panel-sub', origin))
 
   if (stage === 'egg') {
     statusLine = el('div', 'panel-status')
@@ -261,6 +256,12 @@ function renderCare(target: PetActor): void {
         openChat(target)
       }),
     )
+  footer.append(
+    button('🌳 สมุด', () => {
+      closePanel()
+      openBook('family', target.state.id)
+    }),
+  )
   footer.append(
     button('ผู้ช่วย', () => {
       closePanel()

@@ -3,16 +3,25 @@ import {
   canBreed,
   carePet,
   createCompanion,
+  createDex,
   createSave,
+  createSummonLog,
+  discover,
+  recordFamily,
   incubate,
   INCUBATION_SECONDS,
   MAX_ACTIVE_PETS,
+  MAX_FARM_PETS,
   tickPet,
   type Behavior,
   type CareAction,
   type CompanionState,
+  type Dex,
+  type FamilyBook,
+  type PartAlleleDef,
   type PetState,
   type SaveData,
+  type SummonLog,
 } from '@mochimon/core'
 import { PetActor } from './pet'
 import { newEgg, pickName, storeSave } from './store'
@@ -28,6 +37,13 @@ export let farm: PetState[] = []
 export let companion: CompanionState = createCompanion(Date.now())
 export function setCompanion(next: CompanionState): void {
   companion = next
+}
+
+/** สมุดสะสม บันทึกการอัญเชิญ และเครือญาติ (ส่วนที่เซฟ) */
+export const collection: { dex: Dex; summons: SummonLog; family: FamilyBook } = {
+  dex: createDex(),
+  summons: createSummonLog(),
+  family: {},
 }
 
 const reslot = (): void => pets.forEach((actor, index) => (actor.slot = index))
@@ -50,6 +66,7 @@ function freeSpot(x: number): number {
 }
 
 export function addPet(state: PetState, x?: number): PetActor {
+  collection.family = recordFamily(collection.family, state)
   const wanted = x ?? layout.width * rng.range(0.25, 0.7)
   const actor = new PetActor(state, state.nurture.stage === 'egg' ? freeSpot(wanted) : wanted)
   pets.push(actor)
@@ -74,6 +91,7 @@ export function snapshot(): SaveData {
     Date.now(),
     farm,
     companion,
+    { ...collection },
   )
 }
 export const saveNow = (): Promise<void> => storeSave(snapshot())
@@ -82,6 +100,15 @@ export function restore(save: SaveData): void {
   for (const actor of [...pets]) removePet(actor)
   farm = save.farm
   companion = save.companion
+  collection.dex = save.dex
+  collection.summons = save.summons
+  collection.family = save.family
+  // เซฟจากรุ่นก่อนยังไม่มีสมุด: บันทึกทุกตัวที่มีอยู่แล้วแบบเงียบๆ
+  for (const pet of farm) {
+    collection.family = recordFamily(collection.family, pet)
+    if (pet.nurture.stage !== 'egg') learnFrom(pet)
+  }
+  for (const pet of save.pets) if (pet.nurture.stage !== 'egg') learnFrom(pet)
   Object.assign(settings, save.settings)
   // กระจายตัวกันตอนเริ่ม ไม่ให้ยืนกองกัน
   save.pets.forEach((state, index) => {
@@ -140,7 +167,11 @@ export function addEgg(): PetActor | null {
     pets[0]?.say(`บนจออยู่ได้ ${MAX_ACTIVE_PETS} ตัว ฝากฟาร์มก่อนนะ`, 4)
     return null
   }
-  const egg = addPet(newEgg(rng, allNames()))
+  const egg = addPet({
+    ...newEgg(rng, allNames()),
+    bornAt: Date.now(),
+    origin: { kind: 'gift' },
+  })
   egg.say('ไข่ใบใหม่! ลูบเพื่อช่วยฟัก', 4)
   saveNow()
   return egg
@@ -170,6 +201,69 @@ export function recallFromFarm(): PetActor | null {
   actor.say('กลับมาแล้ว~', 3)
   saveNow()
   return actor
+}
+
+/** ฟาร์มยังรับเพิ่มได้ไหม */
+export const farmHasRoom = (): boolean => farm.length < MAX_FARM_PETS
+
+/**
+ * รับสัตว์ตัวใหม่เข้าบ้าน: บนจอถ้ายังมีที่ ไม่งั้นไปฟาร์ม
+ * คืนตัวบนจอ, 'farm' หรือ null ถ้าเต็มทั้งสองที่
+ */
+export function adopt(state: PetState, x?: number): PetActor | 'farm' | null {
+  if (hasRoom()) return addPet(state, x)
+  if (!farmHasRoom()) return null
+  collection.family = recordFamily(collection.family, state)
+  farm.push(state)
+  return 'farm'
+}
+
+/**
+ * เรียกตัวที่เลือกจากฟาร์มมาบนจอ — บนจอเต็มแล้วให้ระบุตัวที่จะสลับไปพักแทน
+ * คืนตัวที่ขึ้นมาบนจอ หรือ null ถ้าทำไม่ได้
+ */
+export function recallPet(id: string, swap?: PetActor): PetActor | null {
+  const index = farm.findIndex((p) => p.id === id)
+  if (index < 0) return null
+  if (!hasRoom()) {
+    if (!swap || !pets.includes(swap)) return null
+    farm.push(swap.state)
+    removePet(swap)
+  }
+  const [state] = farm.splice(index, 1)
+  const actor = addPet(state!, swap?.x)
+  actor.say('กลับมาแล้ว~', 3)
+  saveNow()
+  return actor
+}
+
+// ───────── สมุดสะสม ─────────
+const discoveryListeners: ((actor: PetActor, found: PartAlleleDef[], species: string[]) => void)[] =
+  []
+/** แจ้งเมื่อสัตว์บนจอทำให้ค้นพบลักษณะ/สายพันธุ์ใหม่ */
+export function onDiscovery(
+  listener: (actor: PetActor, found: PartAlleleDef[], species: string[]) => void,
+): void {
+  discoveryListeners.push(listener)
+}
+
+/** บันทึกสิ่งที่เห็นจากสัตว์ 1 ตัวลงสมุด (ยีนส์แฝงนับเมื่อโตพอจะเปิดเผย) */
+function learnFrom(pet: PetState): { found: PartAlleleDef[]; species: string[] } {
+  const result = discover(collection.dex, pet.genome, canBreed(pet), Date.now())
+  collection.dex = result.dex
+  return { found: result.alleles, species: result.species }
+}
+
+/** ตรวจสัตว์บนจอทุกตัว: ฟักใหม่/โตจนยีนส์แฝงเปิดเผย → ฉลองการค้นพบ; ชื่อเปลี่ยน → อัปเดตเครือญาติ */
+function noticeCollection(): void {
+  for (const actor of pets) {
+    collection.family = recordFamily(collection.family, actor.state)
+    if (actor.isEgg) continue
+    const { found, species } = learnFrom(actor.state)
+    if (found.length === 0 && species.length === 0) continue
+    for (const listener of discoveryListeners) listener(actor, found, species)
+    saveNow()
+  }
 }
 
 // ───────── ผสมพันธุ์ ─────────
@@ -203,8 +297,9 @@ export function startPairing(a: PetActor, b: PetActor): boolean {
     setTimeout(() => {
       // ระหว่างรอ อาจมีตัวถูกฝากฟาร์มหรือที่เต็มไปแล้ว
       if (!pets.includes(a) || !pets.includes(b) || !hasRoom()) return
-      const egg = breedPets(a.state, b.state, pickName(rng, allNames()), rng)
-      if (!egg) return
+      const bred = breedPets(a.state, b.state, pickName(rng, allNames()), rng)
+      if (!bred) return
+      const egg = { ...bred, bornAt: Date.now() }
       addPet(egg, mid).say('ไข่ใบใหม่! ลูบเพื่อช่วยฟัก', 4)
       saveNow()
     }, 1800)
@@ -222,7 +317,14 @@ export function startPairing(a: PetActor, b: PetActor): boolean {
 const lastBehavior = new Map<string, Behavior>()
 
 /** เดินเวลาจำลองของสัตว์ทุกตัวบนจอ 1 ก้าว */
+let collectionAccum = 0
+
 export function tickAll(dtSec: number): void {
+  collectionAccum += dtSec
+  if (collectionAccum >= 3) {
+    collectionAccum = 0
+    noticeCollection()
+  }
   const now = new Date()
   const hour = now.getHours() + now.getMinutes() / 60
   const active = userActive()
