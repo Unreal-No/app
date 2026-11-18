@@ -19,6 +19,8 @@ export interface SaveSettings {
   perching: boolean
   /** ซ่อนสัตว์เองเมื่อมีแอป/เกมเต็มจอ */
   hideOnFullscreen: boolean
+  /** แสงและบรรยากาศตามเวลาจริง (กลางวัน/กลางคืน ฤดู เทศกาล) */
+  daylight: boolean
 }
 
 /** รูปแบบไฟล์เซฟรุ่นปัจจุบัน */
@@ -54,6 +56,7 @@ export const DEFAULT_SETTINGS: SaveSettings = {
   quiet: false,
   perching: true,
   hideOnFullscreen: true,
+  daylight: true,
 }
 
 export function createSave(

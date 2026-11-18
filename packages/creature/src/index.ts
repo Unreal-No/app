@@ -6,6 +6,7 @@ import { buildEgg, type BuiltEgg } from './build/egg'
 
 export { defaultAnimInput, type AnimInput } from './anim/animate'
 export { EMOTES, FACES, type FacePose } from './anim/expression'
+export { setSceneTint } from './material/plush'
 export type { EmoteKind } from './fx/emote'
 export {
   buildCreature,

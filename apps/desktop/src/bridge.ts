@@ -33,6 +33,8 @@ export type TrayAction =
   | 'perch-off'
   | 'fshide-on'
   | 'fshide-off'
+  | 'daylight-on'
+  | 'daylight-off'
   | 'quit'
   | 'assistant'
   | 'chat'

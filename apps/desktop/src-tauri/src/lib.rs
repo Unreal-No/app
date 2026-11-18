@@ -81,6 +81,13 @@ pub struct MenuState {
     pub quiet: bool,
     pub perching: bool,
     pub hide_on_fullscreen: bool,
+    /// แสงและบรรยากาศตามเวลาจริง (เซฟรุ่นเก่าไม่มีค่านี้ → เปิด)
+    #[serde(default = "enabled")]
+    pub daylight: bool,
+}
+
+fn enabled() -> bool {
+    true
 }
 
 #[tauri::command]

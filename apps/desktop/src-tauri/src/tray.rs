@@ -14,6 +14,7 @@ pub struct TrayItems {
     quiet: CheckMenuItem<Wry>,
     perching: CheckMenuItem<Wry>,
     hide_on_fullscreen: CheckMenuItem<Wry>,
+    daylight: CheckMenuItem<Wry>,
 }
 
 impl TrayItems {
@@ -21,6 +22,7 @@ impl TrayItems {
         let _ = self.quiet.set_checked(menu.quiet);
         let _ = self.perching.set_checked(menu.perching);
         let _ = self.hide_on_fullscreen.set_checked(menu.hide_on_fullscreen);
+        let _ = self.daylight.set_checked(menu.daylight);
     }
 }
 
@@ -45,6 +47,9 @@ pub fn build(app: &App) -> tauri::Result<()> {
         .checked(true)
         .build(app)?;
     let hide_on_fullscreen = CheckMenuItemBuilder::with_id("fshide", "ซ่อนเมื่อมีแอป/เกมเต็มจอ")
+        .checked(true)
+        .build(app)?;
+    let daylight = CheckMenuItemBuilder::with_id("daylight", "แสงและบรรยากาศตามเวลาจริง")
         .checked(true)
         .build(app)?;
     let autostart = CheckMenuItemBuilder::with_id("autostart", "เปิดพร้อม Windows")
@@ -72,7 +77,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
         .separator()
         .items(&[&summon, &book, &reroll])
         .separator()
-        .items(&[&quiet, &visible, &perching, &hide_on_fullscreen])
+        .items(&[&quiet, &visible, &perching, &hide_on_fullscreen, &daylight])
         .item(&habitat)
         .separator()
         .item(&autostart)
@@ -83,6 +88,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
         quiet: quiet.clone(),
         perching: perching.clone(),
         hide_on_fullscreen: hide_on_fullscreen.clone(),
+        daylight: daylight.clone(),
     });
 
     let mut tray = TrayIconBuilder::with_id("main")
@@ -116,6 +122,10 @@ pub fn build(app: &App) -> tauri::Result<()> {
                 .hide_on_fullscreen
                 .store(on, Ordering::Relaxed);
             let _ = app.emit("tray", if on { "fshide-on" } else { "fshide-off" });
+        }
+        "daylight" => {
+            let on = daylight.is_checked().unwrap_or(true);
+            let _ = app.emit("tray", if on { "daylight-on" } else { "daylight-off" });
         }
         "autostart" => {
             let launcher = app.autolaunch();

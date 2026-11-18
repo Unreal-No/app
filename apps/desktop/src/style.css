@@ -818,3 +818,73 @@ label.item-text {
   padding: 3px 0;
   font-weight: 600;
 }
+
+/* ───────── บรรยากาศ ───────── */
+.ambient {
+  position: absolute;
+  pointer-events: none;
+}
+.firefly {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  margin: -3px;
+  border-radius: 50%;
+  background: #fff9b0;
+  box-shadow: 0 0 8px 3px rgba(255, 236, 120, 0.75);
+  animation:
+    firefly-drift 6s ease-in-out infinite alternate,
+    firefly-blink 3s ease-in-out infinite;
+}
+@keyframes firefly-drift {
+  to {
+    transform: translate(var(--dx), var(--dy));
+  }
+}
+@keyframes firefly-blink {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.ambient.rain {
+  width: 240px;
+  height: 240px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent, #000 25%, #000 80%, transparent);
+  mask-image: linear-gradient(transparent, #000 25%, #000 80%, transparent);
+}
+.raindrop {
+  position: absolute;
+  top: -20px;
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: rgba(120, 170, 220, 0.55);
+  animation: rain-fall 1.2s linear infinite;
+}
+@keyframes rain-fall {
+  to {
+    transform: translateY(260px);
+  }
+}
+.krathong {
+  position: absolute;
+  font-size: 26px;
+  margin-left: -13px;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(255, 210, 120, 0.9));
+  animation: krathong-bob 3s ease-in-out infinite;
+  font-family: 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+}
+.krathong[hidden] {
+  display: none;
+}
+@keyframes krathong-bob {
+  50% {
+    transform: translate(10px, -3px) rotate(4deg);
+  }
+}

@@ -42,6 +42,7 @@ import type { PetActor } from './pet'
 import { signRect, updateSigns } from './signs'
 import { altarRect, openAltar, summonWith, toggleAltar, updateAltar } from './summon'
 import { bookRect, openBook, toggleBook, updateBook } from './book'
+import { updateAmbient } from './ambient'
 import { chatRect, openChat, updateChatPanel } from './chatPanel'
 import { firstPet, loadSave } from './store'
 import {
@@ -156,6 +157,10 @@ onTray((action) => {
     case 'fshide-off':
       settings.hideOnFullscreen = action === 'fshide-on'
       break
+    case 'daylight-on':
+    case 'daylight-off':
+      settings.daylight = action === 'daylight-on'
+      break
     case 'reroll':
       addEgg()
       break
@@ -261,6 +266,7 @@ function frame(now: number): void {
   updateChatPanel()
   updateAltar()
   updateBook()
+  updateAmbient()
   reportHitShapes()
   canvas.style.cursor = press?.dragging
     ? 'grabbing'

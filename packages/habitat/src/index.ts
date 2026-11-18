@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { soft } from './material'
 
+export { setSceneTint } from './material'
+
 export type HabitatKind = 'meadow' | 'cloud' | 'underwater' | 'snow'
 export const HABITAT_KINDS: HabitatKind[] = ['meadow', 'cloud', 'underwater', 'snow']
 export const HABITAT_NAME_TH: Record<HabitatKind, string> = {

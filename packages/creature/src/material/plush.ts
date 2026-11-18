@@ -56,6 +56,14 @@ void main() {
 }
 `
 
+/**
+ * สีแสงของฉากที่ใช้ร่วมกันทุกตัว (เช่น อมส้มตอนเย็น อมน้ำเงินตอนกลางคืน) — เปลี่ยนที่เดียวมีผลทุกวัสดุ
+ */
+export const SCENE_TINT = { value: new THREE.Color(1, 1, 1) }
+export function setSceneTint(r: number, g: number, b: number): void {
+  SCENE_TINT.value.setRGB(r, g, b)
+}
+
 const FRAGMENT = /* glsl */ `
 uniform vec3 uBase;
 uniform vec3 uBellyColor;
@@ -75,6 +83,7 @@ uniform float uUsePaint;
 uniform float uFurDensity;
 uniform float uOpacity;
 uniform float uSheer;
+uniform vec3 uSceneTint;
 varying vec3 vNormal;
 varying vec3 vPat;
 varying vec4 vPaint;
@@ -161,7 +170,7 @@ void main() {
   lit *= 0.965 + 0.07 * vnoise(vPat * 7.0 + 3.1) * uUsePaint;
   // ชิ้นโปร่งเรืองแสง: กลางชิ้นโปร่ง ขอบทึบ
   alpha *= mix(1.0, 0.55 + 0.45 * rim, uSheer);
-  gl_FragColor = vec4(lit, alpha);
+  gl_FragColor = vec4(lit * uSceneTint, alpha);
   #include <colorspace_fragment>
 }
 `
@@ -253,6 +262,7 @@ export function createPlushMaterials(p: Phenotype, opts: PlushOptions): PlushMat
         uGlow: { value: cfg.glow ?? 0 },
         uOpacity: { value: 1 },
         uSheer: { value: cfg.sheer ?? 0 },
+        uSceneTint: SCENE_TINT,
       },
     })
     all.push(material)

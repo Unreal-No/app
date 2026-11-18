@@ -21,6 +21,7 @@ uniform vec3 uTop;
 uniform float uOpacity;
 uniform float uGlass;
 uniform float uGlow;
+uniform vec3 uSceneTint;
 varying vec3 vNormal;
 varying vec3 vViewPos;
 varying float vHeight;
@@ -37,10 +38,16 @@ void main() {
   lit = mix(lit, col + rim * 0.5, uGlow);
   // แก้ว: กลางใส ขอบเห็นชัด
   float alpha = mix(uOpacity, clamp(uOpacity * 0.35 + rim * 0.9, 0.0, 1.0), uGlass);
-  gl_FragColor = vec4(mix(lit, vec3(1.0), uGlass * rim * 0.6), alpha);
+  gl_FragColor = vec4(mix(lit, vec3(1.0), uGlass * rim * 0.6) * uSceneTint, alpha);
   #include <colorspace_fragment>
 }
 `
+
+/** สีแสงของฉาก (ใช้ร่วมทุกวัสดุของฉาก) */
+export const SCENE_TINT = { value: new THREE.Color(1, 1, 1) }
+export function setSceneTint(r: number, g: number, b: number): void {
+  SCENE_TINT.value.setRGB(r, g, b)
+}
 
 export interface SoftOptions {
   /** สีด้านบนของชิ้น (ไล่สีตามความสูง) */
@@ -68,6 +75,7 @@ export function soft(color: string, opts: SoftOptions = {}): THREE.ShaderMateria
       uOpacity: { value: opacity },
       uGlass: { value: opts.glass ? 1 : 0 },
       uGlow: { value: opts.glow ?? 0 },
+      uSceneTint: SCENE_TINT,
     },
   })
 }

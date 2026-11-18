@@ -125,7 +125,7 @@ describe('ไฟล์เซฟ', () => {
     const save = createSave(
       [mochi(), egg],
       'meadow',
-      { quiet: true, perching: false, hideOnFullscreen: false },
+      { quiet: true, perching: false, hideOnFullscreen: false, daylight: false },
       1234,
     )
     const loaded = parseSave(serializeSave(save))
