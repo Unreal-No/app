@@ -67,6 +67,8 @@ export class PetActor {
   errand: { x: number; ttl: number; onArrive?: () => void } | null = null
   /** แผงดูแลเปิดอยู่ → ยืนรอ ไม่เดินหนี */
   attending = false
+  /** เพื่อนซี้บนจอ — ตอนพักจะไปนั่งข้างๆ */
+  buddy: PetActor | null = null
   /** เวลาที่เหลือของท่าอ้อน/กอดหัวใจ (วินาที) */
   loveTimer = 0
   private vy = 0
@@ -261,7 +263,18 @@ export class PetActor {
         // มีฉากมุมพักผ่อน → เดินกลับไปพักบน/ข้างฉาก
         // (ถ้านั่งอยู่บนขอบหน้าต่างก็พักตรงนั้นเลย)
         const spot = this.standing ? null : restSpot()
-        this.targetX = spot === null ? null : spot + (REST_OFFSETS[this.slot] ?? 0)
+        const buddy = this.buddy
+        if (spot === null && buddy && !this.standing && Math.abs(buddy.x - this.x) > 110) {
+          // ไม่มีฉากพัก → ไปนั่งข้างเพื่อนซี้
+          const side = this.x < buddy.x ? -1 : 1
+          this.targetX = THREE.MathUtils.clamp(
+            buddy.x + side * 80,
+            EDGE_MARGIN,
+            walkMaxX(EDGE_MARGIN),
+          )
+        } else {
+          this.targetX = spot === null ? null : spot + (REST_OFFSETS[this.slot] ?? 0)
+        }
         break
       }
       default:

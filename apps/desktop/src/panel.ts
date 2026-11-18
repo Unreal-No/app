@@ -1,4 +1,12 @@
 import {
+  EXPEDITION_MINUTES,
+  formatDuration,
+  ITEMS,
+  PLACE_IDS,
+  PLACES,
+  suited,
+  type PlaceId,
+  type SpecialItem,
   canBreed,
   dominantTraits,
   EMOTION_NAME_TH,
@@ -10,9 +18,11 @@ import {
   type NeedKey,
 } from '@mochimon/core'
 import { setKeyboardFocus } from './bridge'
+import { exploreBlocker, feedSpecial, sendOnExpedition } from './adventure'
 import {
   allNames,
   care,
+  collection,
   hasRoom,
   partnersFor,
   pets,
@@ -25,6 +35,7 @@ import { button, el, rectOf } from './ui'
 import { openAssistant } from './assistant'
 import { openChat } from './chatPanel'
 import { birthdayText, openBook, originText } from './book'
+import { relationSummary } from './social'
 import { pickName } from './store'
 import { NEED_TH, STAGE_TH } from './text'
 import { cursor, layout, rng, uiLayer } from './world'
@@ -53,7 +64,9 @@ uiLayer.append(root)
 new ResizeObserver(() => place()).observe(root)
 
 let actor: PetActor | null = null
-let mode: 'care' | 'pair' = 'care'
+let mode: 'care' | 'pair' | 'explore' = 'care'
+let chosenPlace: PlaceId | null = null
+let chosenMinutes = 60
 let renaming = false
 /** เวลาล่าสุดที่เมาส์อยู่แถวแผงหรือตัวสัตว์ (ms) */
 let lastNear = 0
@@ -72,6 +85,7 @@ export function openPanel(target: PetActor): void {
   actor = target
   actor.attending = true
   mode = 'care'
+  chosenPlace = null
   renaming = false
   lastNear = performance.now()
   signature = ''
@@ -183,6 +197,8 @@ function renderCare(target: PetActor): void {
   )
   const origin = [originText(target.state), birthdayText(target.state)].filter(Boolean).join(' · ')
   if (origin) root.append(el('div', 'panel-sub', origin))
+  const friends = stage === 'egg' ? '' : relationSummary(target.state)
+  if (friends) root.append(el('div', 'panel-sub relations', friends))
 
   if (stage === 'egg') {
     statusLine = el('div', 'panel-status')
@@ -219,6 +235,22 @@ function renderCare(target: PetActor): void {
         }),
       )
     root.append(actions)
+    // ของพิเศษจากการสำรวจ
+    const bag = Object.entries(collection.inventory.items) as [SpecialItem, number][]
+    if (bag.length > 0) {
+      const treats = el('div', 'panel-actions panel-bag')
+      treats.append(el('span', 'need-label', 'ของในกระเป๋า:'))
+      for (const [id, n] of bag) {
+        const b = button(`${ITEMS[id].icon}×${n}`, () => {
+          feedSpecial(target, id)
+          signature = ''
+          render()
+        })
+        b.title = ITEMS[id].name
+        treats.append(b)
+      }
+      root.append(treats)
+    }
 
     // ยีนส์ด้อยที่ซ่อนอยู่: เปิดเผยเมื่อโตพอจะมีลูกได้
     if (canBreed(target.state)) {
@@ -245,6 +277,14 @@ function renderCare(target: PetActor): void {
     footer.append(
       button('♥ จับคู่', () => {
         mode = 'pair'
+        signature = ''
+        render()
+      }),
+    )
+  if (stage !== 'egg')
+    footer.append(
+      button('🧭 สำรวจ', () => {
+        mode = 'explore'
         signature = ''
         render()
       }),
@@ -308,6 +348,69 @@ function renderPair(target: PetActor): void {
   root.append(footer)
 }
 
+function renderExplore(target: PetActor): void {
+  root.append(renderHeader(target))
+  root.append(el('div', 'panel-sub', `ส่ง ${target.state.name} ออกสำรวจ`))
+  const blocked = exploreBlocker(target)
+  if (blocked) {
+    root.append(el('div', 'panel-hint', blocked))
+  } else {
+    const places = el('div', 'explore-places')
+    for (const id of PLACE_IDS) {
+      const place = PLACES[id]
+      const good = suited(target.state, id)
+      const b = button(`${place.icon} ${place.name}${good ? ' ⭐' : ''}`, () => {
+        chosenPlace = id
+        signature = ''
+        render()
+      })
+      if (chosenPlace === id) b.classList.add('active')
+      b.title = good ? 'เหมาะกับถิ่นของตัวนี้: ได้ของมากขึ้น' : ''
+      places.append(b)
+    }
+    const times = el('div', 'panel-actions explore-times')
+    for (const minutes of EXPEDITION_MINUTES) {
+      const b = button(formatDuration(minutes * 60_000), () => {
+        chosenMinutes = minutes
+        signature = ''
+        render()
+      })
+      if (chosenMinutes === minutes) b.classList.add('active')
+      times.append(b)
+    }
+    const go = button(
+      'ออกเดินทาง',
+      () => {
+        if (!chosenPlace) return
+        const place = chosenPlace
+        closePanel()
+        sendOnExpedition(target, place, chosenMinutes)
+      },
+      'primary',
+    )
+    go.disabled = !chosenPlace
+    root.append(
+      places,
+      times,
+      go,
+      el(
+        'div',
+        'panel-hint',
+        '⭐ = เหมาะกับตัวนี้ · นับเวลาจริงแม้ปิดแอป · ระหว่างนั้นไม่ต้องดูแล ไม่มีล้มเหลว · ยิ่งนานยิ่งมีโอกาสเจอไข่',
+      ),
+    )
+  }
+  const footer = el('div', 'panel-actions panel-footer')
+  footer.append(
+    button('ย้อนกลับ', () => {
+      mode = 'care'
+      signature = ''
+      render()
+    }),
+  )
+  root.append(footer)
+}
+
 function render(): void {
   if (!actor || renaming) return
   const state = actor.state
@@ -315,6 +418,10 @@ function render(): void {
     state.id,
     state.name,
     mode,
+    chosenPlace,
+    chosenMinutes,
+    JSON.stringify(collection.inventory.items),
+    collection.expeditions.length,
     state.nurture.stage,
     pets.length,
     partnersFor(actor)
@@ -328,6 +435,7 @@ function render(): void {
     hatchBar = null
     root.replaceChildren()
     if (mode === 'pair') renderPair(actor)
+    else if (mode === 'explore') renderExplore(actor)
     else renderCare(actor)
     place()
   }

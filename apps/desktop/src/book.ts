@@ -1,4 +1,10 @@
 import {
+  expeditionLeft,
+  formatDuration,
+  FOSSILS_PER_EGG,
+  ITEMS,
+  PLACES,
+  type SpecialItem,
   canBreed,
   childrenOf,
   dexProgress,
@@ -15,6 +21,7 @@ import {
   type PetState,
   type Rarity,
 } from '@mochimon/core'
+import { assembleFossil } from './adventure'
 import { collection, farm, hasRoom, pets, recallPet, sendToFarm } from './game'
 import { portrait } from './portrait'
 import { KIND_TH } from './summon'
@@ -251,7 +258,52 @@ function renderFarm(): void {
       ),
     )
   for (const pet of resting) list.append(petRow(pet, false))
+  if (collection.expeditions.length > 0) {
+    list.append(el('li', 'list-head', 'ออกสำรวจ'))
+    const now = Date.now()
+    for (const trip of collection.expeditions) {
+      const item = el('li', 'pet-row')
+      const text = el('div', 'item-text')
+      const place = PLACES[trip.place]
+      text.append(
+        el('div', 'pet-row-name', `${place.icon} ${trip.pet.name}`),
+        el(
+          'div',
+          'item-sub',
+          `${place.name} · กลับในอีก ${formatDuration(expeditionLeft(trip, now))}`,
+        ),
+      )
+      item.append(thumb(trip.pet), text)
+      list.append(item)
+    }
+  }
   root.append(list)
+
+  // กระเป๋า: ของพิเศษ (ใช้ได้จากแผงดูแล) + ชิ้นฟอสซิล
+  const bag = Object.entries(collection.inventory.items) as [SpecialItem, number][]
+  const fossils = collection.inventory.fossils
+  if (bag.length > 0 || fossils > 0) {
+    const box = el('div', 'bag')
+    box.append(el('div', 'list-head', 'กระเป๋า'))
+    const chips = el('div', 'dex-chips')
+    for (const [id, n] of bag)
+      chips.append(el('span', 'chip', `${ITEMS[id].icon} ${ITEMS[id].name} ×${n}`))
+    if (fossils > 0) chips.append(el('span', 'chip', `🦴 ชิ้นฟอสซิล ${fossils}/${FOSSILS_PER_EGG}`))
+    box.append(chips)
+    if (fossils >= FOSSILS_PER_EGG)
+      box.append(
+        button(
+          'ประกอบไข่ฟอสซิล',
+          () => {
+            assembleFossil()
+            signature = ''
+          },
+          'primary',
+        ),
+      )
+    box.append(el('div', 'panel-hint', 'ให้ของพิเศษได้จากแผงดูแล (คลิกขวาที่สัตว์)'))
+    root.append(box)
+  }
 }
 
 function node(n: PedigreeNode | undefined, className: string): HTMLElement {
@@ -418,6 +470,9 @@ export function updateBook(): void {
     farm.map((p) => [p.id, p.name]),
     Object.keys(collection.dex.alleles).length,
     Object.keys(collection.family).length,
+    collection.expeditions.map((t) => t.pet.id),
+    collection.inventory,
+    Math.floor(Date.now() / 60_000),
   ])
   if (next !== signature) {
     signature = next

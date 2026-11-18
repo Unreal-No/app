@@ -888,3 +888,42 @@ label.item-text {
     transform: translate(10px, -3px) rotate(4deg);
   }
 }
+
+/* ───────── สำรวจ / กระเป๋า ───────── */
+.explore-places {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  margin: 6px 0;
+}
+.panel .explore-places button {
+  text-align: left;
+  white-space: nowrap;
+}
+.explore-times {
+  flex-wrap: nowrap !important;
+}
+.panel .explore-times button {
+  flex: 1 1 0;
+  padding: 3px 0;
+  white-space: nowrap;
+}
+.panel .explore-places button.active,
+.panel .explore-times button.active {
+  background: #b79ad6;
+  color: #ffffff;
+}
+.explore-times {
+  margin-bottom: 6px;
+}
+.panel button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.panel-bag {
+  margin-top: 6px;
+  align-items: center;
+}
+.bag {
+  margin-top: 8px;
+}

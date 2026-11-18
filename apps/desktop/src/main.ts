@@ -23,6 +23,7 @@ import {
   farm,
   onDiscovery,
   pets,
+  walkers,
   recallFromFarm,
   setCompanion,
   restore,
@@ -43,6 +44,16 @@ import { signRect, updateSigns } from './signs'
 import { altarRect, openAltar, summonWith, toggleAltar, updateAltar } from './summon'
 import { bookRect, openBook, toggleBook, updateBook } from './book'
 import { updateAmbient } from './ambient'
+import { assembleFossil, finishExpeditionsNow, sendOnExpedition } from './adventure'
+import {
+  offer,
+  offerRect,
+  openOffer,
+  spawnVisitor,
+  updateVisitor,
+  visitorActor,
+  visitorInfo,
+} from './visitors'
 import { chatRect, openChat, updateChatPanel } from './chatPanel'
 import { firstPet, loadSave } from './store'
 import {
@@ -79,6 +90,12 @@ let press: { actor: PetActor; x: number; y: number; time: number; dragging: bool
 
 canvas.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return
+  // แขกป่า: คลิกเพื่อเลือกของให้ (อุ้มไม่ได้ — ยังไม่สนิทกัน)
+  const guest = visitorActor()
+  if (guest?.contains(e.clientX, e.clientY)) {
+    openOffer()
+    return
+  }
   const actor = petAt(e.clientX, e.clientY)
   if (!actor) return
   canvas.setPointerCapture(e.pointerId)
@@ -214,6 +231,11 @@ function reportHitShapes(): void {
         return { x: Math.round(hit.x), y: Math.round(hit.y), r: Math.round(hit.r) }
       })
   if (!press?.dragging) {
+    const guest = visitorActor()
+    if (guest) {
+      const hit = guest.hit
+      shapes.push({ x: Math.round(hit.x), y: Math.round(hit.y), r: Math.round(hit.r) })
+    }
     for (const rect of [
       panelRect(),
       assistantRect(),
@@ -222,6 +244,7 @@ function reportHitShapes(): void {
       chatRect(),
       altarRect(),
       bookRect(),
+      offerRect(),
     ])
       if (rect) shapes.push(rect)
   }
@@ -259,6 +282,8 @@ function frame(now: number): void {
   }
 
   for (const actor of pets) actor.update(dt, pets)
+  for (const actor of walkers) actor.update(dt, [])
+  updateVisitor(dt)
   updatePanel()
   tickAssistant()
   updateSigns()
@@ -312,6 +337,13 @@ async function start(): Promise<void> {
       openAltar,
       openBook,
       summonWith,
+      sendOnExpedition,
+      finishExpeditionsNow,
+      assembleFossil,
+      spawnVisitor,
+      offer,
+      visitor: visitorActor,
+      visitorInfo,
       /** สร้างสัตว์สายพันธุ์ที่ระบุบนจอ (ใช้ทดสอบ) */
       spawn: (species: string, stage: LifeStage = 'adult', x?: number) =>
         addPet(

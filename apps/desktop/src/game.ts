@@ -1,9 +1,11 @@
 import {
   breedPets,
   canBreed,
+  shareMoment,
   carePet,
   createCompanion,
   createDex,
+  createInventory,
   createSave,
   createSummonLog,
   discover,
@@ -17,9 +19,12 @@ import {
   type CareAction,
   type CompanionState,
   type Dex,
+  type Expedition,
   type FamilyBook,
+  type Inventory,
   type PartAlleleDef,
   type PetState,
+  type Relations,
   type SaveData,
   type SummonLog,
 } from '@mochimon/core'
@@ -39,12 +44,27 @@ export function setCompanion(next: CompanionState): void {
   companion = next
 }
 
-/** สมุดสะสม บันทึกการอัญเชิญ และเครือญาติ (ส่วนที่เซฟ) */
-export const collection: { dex: Dex; summons: SummonLog; family: FamilyBook } = {
+/** สมุดสะสม บันทึกการอัญเชิญ เครือญาติ กระเป๋า การสำรวจ ความสัมพันธ์ (ส่วนที่เซฟ) */
+export const collection: {
+  dex: Dex
+  summons: SummonLog
+  family: FamilyBook
+  inventory: Inventory
+  expeditions: Expedition[]
+  relations: Relations
+  visitorAt: number
+} = {
   dex: createDex(),
   summons: createSummonLog(),
   family: {},
+  inventory: createInventory(),
+  expeditions: [],
+  relations: {},
+  visitorAt: 0,
 }
+
+/** สัตว์ที่กำลังเดินออก/เข้าจอเพื่อความสวยงาม (ไม่ได้อยู่ในบ้านตอนนี้ ไม่ถูกเซฟ ไม่รับเมาส์) */
+export const walkers: PetActor[] = []
 
 const reslot = (): void => pets.forEach((actor, index) => (actor.slot = index))
 
@@ -52,6 +72,7 @@ export const hasRoom = (): boolean => pets.length < MAX_ACTIVE_PETS
 export const allNames = (): string[] => [
   ...pets.map((p) => p.state.name),
   ...farm.map((p) => p.name),
+  ...collection.expeditions.map((e) => e.pet.name),
 ]
 export const findPet = (id: string): PetActor | undefined => pets.find((p) => p.state.id === id)
 
@@ -72,6 +93,13 @@ export function addPet(state: PetState, x?: number): PetActor {
   pets.push(actor)
   reslot()
   return actor
+}
+
+/** รับตัวที่อยู่บนจออยู่แล้ว (เช่น แขกป่าที่ผูกมิตรได้) เข้าเป็นสัตว์ในบ้าน */
+export function adoptActor(actor: PetActor): void {
+  collection.family = recordFamily(collection.family, actor.state)
+  pets.push(actor)
+  reslot()
 }
 
 export function removePet(actor: PetActor): void {
@@ -103,6 +131,10 @@ export function restore(save: SaveData): void {
   collection.dex = save.dex
   collection.summons = save.summons
   collection.family = save.family
+  collection.inventory = save.inventory
+  collection.expeditions = save.expeditions
+  collection.relations = save.relations
+  collection.visitorAt = save.visitorAt
   // เซฟจากรุ่นก่อนยังไม่มีสมุด: บันทึกทุกตัวที่มีอยู่แล้วแบบเงียบๆ
   for (const pet of farm) {
     collection.family = recordFamily(collection.family, pet)
@@ -139,6 +171,15 @@ export function care(actor: PetActor, action: CareAction): void {
   let next = carePet(actor.state, action)
   if (action === 'play') {
     actor.playTimer = 6
+    // เล่นด้วยกันกับตัวที่อยู่ใกล้ๆ → สนิทกันขึ้น
+    for (const other of pets)
+      if (other !== actor && !other.isEgg && Math.abs(other.x - actor.x) < 220)
+        collection.relations = shareMoment(
+          collection.relations,
+          actor.state.id,
+          other.state.id,
+          0.04,
+        )
     next = { ...next, behavior: 'idle', behaviorTimer: 6 }
   } else if (action === 'rest') {
     next = { ...next, behavior: 'sleep', behaviorTimer: 180 }
@@ -289,6 +330,7 @@ export function startPairing(a: PetActor, b: PetActor): boolean {
     if (++arrived < 2) return
     left.face(1)
     right.face(-1)
+    collection.relations = shareMoment(collection.relations, a.state.id, b.state.id, 0.15)
     for (const actor of [a, b]) {
       actor.loveTimer = 3
       actor.hearts()
@@ -318,6 +360,11 @@ const lastBehavior = new Map<string, Behavior>()
 
 /** เดินเวลาจำลองของสัตว์ทุกตัวบนจอ 1 ก้าว */
 let collectionAccum = 0
+const tickHooks: ((dtSec: number) => void)[] = []
+/** งานที่ต้องทำทุกรอบจำลอง (การสำรวจ แขกป่า ความสัมพันธ์) — ลงทะเบียนจากโมดูลอื่น */
+export function onTick(hook: (dtSec: number) => void): void {
+  tickHooks.push(hook)
+}
 
 export function tickAll(dtSec: number): void {
   collectionAccum += dtSec
@@ -325,6 +372,7 @@ export function tickAll(dtSec: number): void {
     collectionAccum = 0
     noticeCollection()
   }
+  for (const hook of tickHooks) hook(dtSec)
   const now = new Date()
   const hour = now.getHours() + now.getMinutes() / 60
   const active = userActive()

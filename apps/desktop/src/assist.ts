@@ -1,3 +1,4 @@
+import { extraAlarms } from './alarmSources'
 import {
   acknowledge,
   alertsBetween,
@@ -286,6 +287,7 @@ function syncAlarms(): void {
     .filter((r) => !r.done)
     .map((r) => ({ id: r.id, atMs: effectiveAt(r), title: 'Mochimon — ถึงเวลาแล้ว', body: r.text }))
   alarms.push(...calendarAlarms(now))
+  alarms.push(...extraAlarms().filter((alarm) => alarm.atMs > now))
   const { focus } = companion
   if (focus.endsAt !== null && focus.endsAt > now)
     alarms.push({
