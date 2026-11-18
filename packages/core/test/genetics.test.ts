@@ -284,3 +284,28 @@ describe('speciesLabel', () => {
     expect(speciesLabel(breed(dragon, cat, rng).genome)).toEqual(label)
   })
 })
+
+describe('มังกรไฟ', () => {
+  it('สร้างได้ ถูกต้อง เป็นสายเทพนิยาย บินได้ และมีชิ้นส่วนตามภาพอ้างอิง', () => {
+    const counts: Record<string, number> = {}
+    for (let i = 0; i < 60; i++) {
+      const genome = createFounder('firedragon', new Rng(`fd${i}`))
+      expect(validateGenome(genome)).toEqual([])
+      const p = express(genome)
+      for (const key of [p.parts.horns.shape, p.parts.wings.shape, p.parts.tail.shape])
+        counts[key] = (counts[key] ?? 0) + 1
+      if (p.parts.wings.shape === 'bat') expect(p.habitat).toBe('sky')
+    }
+    expect(counts.curved).toBeGreaterThan(30)
+    expect(counts.bat).toBeGreaterThan(30)
+    expect(counts.spade).toBeGreaterThan(25)
+    expect(geneDb.species.firedragon?.lineage).toBe('mythical')
+  })
+
+  it('ผสมกับแมวได้ ลูกได้ชื่อพันธุ์ผสม', () => {
+    const rng = new Rng('mix')
+    const kid = breed(createFounder('firedragon', rng), createFounder('cat', rng), rng).genome
+    expect(validateGenome(kid)).toEqual([])
+    expect(speciesLabel(kid).th).toMatch(/มังกรไฟ|แมว/)
+  })
+})

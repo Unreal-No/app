@@ -94,7 +94,12 @@ describe('ส่งสำรวจ', () => {
       startExpedition(bird, 'sky', 480, NOW + i, { fullMoon: true }),
     ).filter((t) => t.loot.egg?.mythical)
     expect(mythic.length).toBeGreaterThan(20)
-    expect(mythic[0]!.loot.egg!.species).toEqual(['dragon', 'dragon'])
+    for (const trip of mythic) {
+      const [a, b] = trip.loot.egg!.species
+      expect(a).toBe(b)
+      expect(['dragon', 'firedragon']).toContain(a)
+    }
+    expect(new Set(mythic.map((t) => t.loot.egg!.species[0])).size).toBe(2)
     const normal = Array.from({ length: 100 }, (_, i) => startExpedition(bird, 'sky', 480, NOW + i))
     expect(normal.some((t) => t.loot.egg?.mythical)).toBe(false)
   })

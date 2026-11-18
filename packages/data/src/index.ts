@@ -17,6 +17,7 @@ import koiJson from './species/koi.json'
 import trikeJson from './species/trike.json'
 import dragonJson from './species/dragon.json'
 import unicornJson from './species/unicorn.json'
+import firedragonJson from './species/firedragon.json'
 import {
   LocusSchema,
   PartAlleleDefSchema,
@@ -105,5 +106,14 @@ export const geneDb: GeneDb = buildGeneDb({
     specialJson,
     markingsJson,
   ],
-  species: [catJson, bunnyJson, chickJson, koiJson, trikeJson, dragonJson, unicornJson],
+  species: [
+    catJson,
+    bunnyJson,
+    chickJson,
+    koiJson,
+    trikeJson,
+    dragonJson,
+    unicornJson,
+    firedragonJson,
+  ],
 })

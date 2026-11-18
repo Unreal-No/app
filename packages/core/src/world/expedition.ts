@@ -41,7 +41,7 @@ export const PLACES: Record<PlaceId, Place> = {
     name: 'เกาะเมฆ',
     icon: '☁️',
     suits: ['sky'],
-    eggs: ['chick', 'dragon'],
+    eggs: ['chick', 'dragon', 'firedragon'],
     item: 'cloudcandy',
     stories: ['กระโดดบนก้อนเมฆนุ่มๆ', 'นั่งดูพระอาทิตย์ตกจากบนเมฆ', 'แข่งบินกับนกฝูงใหญ่'],
   },
@@ -135,7 +135,7 @@ export function startExpedition(
   const mythicalChance =
     opts.fullMoon && (place === 'sky' || place === 'snow') && minutes >= 240 ? 0.45 : 0
   if (rng.chance(mythicalChance)) {
-    const species = place === 'sky' ? 'dragon' : 'unicorn'
+    const species = place === 'sky' ? rng.pick(['dragon', 'firedragon']) : 'unicorn'
     egg = { species: [species, species], seed: `${pet.id}:${now}:egg`, mythical: true }
   } else if (place !== 'ruins' && rng.chance(Math.min(0.95, base * (good ? 1.3 : 1)))) {
     const a = rng.pick(spot.eggs)

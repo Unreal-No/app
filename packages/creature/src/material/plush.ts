@@ -291,9 +291,10 @@ export function createPlushMaterials(p: Phenotype, opts: PlushOptions): PlushMat
       glow: glow * 0.7,
       sheer: glow * 0.18,
     }),
+    // ปีกค้างคาว/มังกร: เนื้อปีกสีลายแต้ม (เช่น ส้มของมังกรไฟ) ส่วนกระดูกปีก/เขายังเป็นสี accent
     membrane: make({
-      base: accent,
-      tip: accentTip,
+      base: p.parts.wings.shape === 'bat' ? color(p.colors.mark.hex) : accent,
+      tip: p.parts.wings.shape === 'bat' ? color(p.colors.mark.hex).lerp(accent, 0.35) : accentTip,
       paint: false,
       glow: glow * 0.6,
       sheer: glow * 0.42,
