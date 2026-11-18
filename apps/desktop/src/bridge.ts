@@ -40,6 +40,7 @@ export type TrayAction =
   | 'chat'
   | 'focus-start'
   | 'summon'
+  | 'explore'
   | 'book'
   | 'habitat-none'
   | 'habitat-meadow'

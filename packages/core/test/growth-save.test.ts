@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   breedPets,
   canBreed,
+  carePet,
   createFounder,
   createMochi,
   createPet,
@@ -250,5 +251,34 @@ describe('ไฟล์เซฟ', () => {
     expect(save?.habitat).toBe('snow')
     expect(save?.savedAt).toBe(99)
     expect(firstValidSave(['x', ''])).toBeNull()
+  })
+})
+
+describe('สั่งนอน', () => {
+  it('สั่งนอนตอนพลังเกือบเต็ม → ยังหลับอย่างน้อย 30 วินาที แล้วตื่นเอง', () => {
+    let pet: PetState = {
+      ...adult('ง่วง', 'cat', 'sleep'),
+      needs: { ...adult('ง่วง', 'cat', 'sleep').needs, energy: 0.97 },
+    }
+    pet = carePet(pet, 'rest')
+    expect(pet.needs.energy).toBeCloseTo(0.97)
+    pet = { ...pet, behavior: 'sleep', behaviorTimer: 180 }
+    const rng = new Rng('nap')
+    let slept = 0
+    for (let i = 0; i < 120 && pet.behavior === 'sleep'; i++) {
+      pet = tickPet(pet, 1, world(), rng)
+      if (pet.behavior === 'sleep') slept++
+    }
+    expect(slept).toBeGreaterThanOrEqual(30)
+    expect(slept).toBeLessThan(120)
+  })
+
+  it('พลังน้อยหลับจนครบเวลาที่สั่ง และพลังฟื้นระหว่างหลับ', () => {
+    let pet: PetState = { ...adult('เหนื่อย', 'cat', 'tired'), behavior: 'sleep', behaviorTimer: 120 }
+    pet = { ...pet, needs: { ...pet.needs, energy: 0.2 } }
+    const rng = new Rng('long')
+    for (let i = 0; i < 100; i++) pet = tickPet(pet, 1, world(), rng)
+    expect(pet.behavior).toBe('sleep')
+    expect(pet.needs.energy).toBeGreaterThan(0.2)
   })
 })

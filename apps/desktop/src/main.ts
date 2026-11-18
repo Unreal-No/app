@@ -193,6 +193,13 @@ onTray((action) => {
     case 'chat':
       openChat()
       return
+    case 'explore': {
+      // ตัวที่ส่งได้ตัวแรก (ไม่ใช่ไข่/เบบี้) → เปิดแผงที่หน้าเลือกที่สำรวจ
+      const traveller =
+        panelActor() ?? pets.find((p) => !p.isEgg && p.state.nurture.stage !== 'baby') ?? pets[0]
+      if (traveller) openPanel(traveller, 'explore')
+      return
+    }
     case 'summon':
       toggleAltar()
       return

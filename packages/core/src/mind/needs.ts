@@ -79,7 +79,8 @@ const CARE_EFFECT: Record<CareAction, Partial<Needs>> = {
   pet: { social: 0.25, comfort: 0.1 },
   play: { fun: 0.4, social: 0.15, energy: -0.12, hygiene: -0.05 },
   bathe: { hygiene: 0.7, comfort: 0.05 },
-  rest: { energy: 0.3, comfort: 0.15 },
+  // พลังฟื้นระหว่างหลับจริง (ไม่เติมทันที ไม่งั้นพลังเต็มแล้วตื่นทันทีหลังสั่งนอน)
+  rest: { comfort: 0.15 },
 }
 
 /** ผลของการดูแลต่อ needs และรูปร่าง (ไขมัน/ความฟิต) */

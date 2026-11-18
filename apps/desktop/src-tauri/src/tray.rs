@@ -57,6 +57,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
         .build(app)?;
     let reroll = MenuItemBuilder::with_id("reroll", "รับไข่ใบใหม่").build(app)?;
     let summon = MenuItemBuilder::with_id("summon", "อัญเชิญจากไฟล์…").build(app)?;
+    let explore = MenuItemBuilder::with_id("explore", "ส่งสำรวจ…").build(app)?;
     let book = MenuItemBuilder::with_id("book", "สมุดฟาร์ม (ฟาร์ม · เครือญาติ · สมุดสะสม)").build(app)?;
 
     // โหมดฉากหลัง: กลมกลืน (ไม่มีฉาก) หรือมุมพักผ่อนพร้อมไดโอรามา
@@ -75,7 +76,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
         .separator()
         .items(&[&call, &feed, &play, &panel])
         .separator()
-        .items(&[&summon, &book, &reroll])
+        .items(&[&summon, &explore, &book, &reroll])
         .separator()
         .items(&[&quiet, &visible, &perching, &hide_on_fullscreen, &daylight])
         .item(&habitat)
@@ -92,7 +93,10 @@ pub fn build(app: &App) -> tauri::Result<()> {
     });
 
     let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Mochimon")
+        .tooltip(match option_env!("BUILD_SHA") {
+            Some(sha) if sha.len() >= 7 => format!("Mochimon · {}", &sha[..7]),
+            _ => "Mochimon · dev".to_string(),
+        })
         .menu(&menu)
         .show_menu_on_left_click(true);
     if let Some(icon) = app.default_window_icon() {
@@ -155,8 +159,8 @@ pub fn build(app: &App) -> tauri::Result<()> {
                 };
             }
         }
-        id @ ("call" | "feed" | "play" | "panel" | "reroll" | "summon" | "book" | "assistant"
-        | "chat" | "focus-start") => {
+        id @ ("call" | "feed" | "play" | "panel" | "reroll" | "summon" | "explore" | "book"
+        | "assistant" | "chat" | "focus-start") => {
             let _ = app.emit("tray", id);
         }
         id if id.starts_with("habitat-") => {

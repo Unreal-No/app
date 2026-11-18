@@ -82,6 +82,9 @@ body {
 .panel {
   position: absolute;
   width: 244px;
+  /* แผงสูงเกินจอ (จอเล็ก/ขยาย 150%) → เลื่อนดูได้ ปุ่มแถวล่างไม่ตกจอ */
+  max-height: calc(100vh - 70px);
+  overflow-y: auto;
   box-sizing: border-box;
   padding: 10px 12px 12px;
   background: #fffdf8;

@@ -497,6 +497,8 @@ export function updateBook(): void {
     const url = portrait(job.pet)
     if (url) job.img.src = url
   }
+  if (!root.querySelector('.build-tag'))
+    root.append(el('div', 'panel-hint build-tag', `Mochimon รุ่น ${__BUILD__}`))
   root.style.left = '16px'
   root.style.top = `${Math.max(8, layout.groundY - root.offsetHeight - 12)}px`
 }

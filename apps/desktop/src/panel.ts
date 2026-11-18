@@ -80,11 +80,11 @@ export const panelActor = (): PetActor | null => actor
 /** กำลังรอให้เลือกคู่ของสัตว์ตัวนี้อยู่ (คลิกสัตว์อีกตัวบนจอเพื่อเลือกได้) */
 export const pairingFor = (): PetActor | null => (mode === 'pair' ? actor : null)
 
-export function openPanel(target: PetActor): void {
+export function openPanel(target: PetActor, view: 'care' | 'explore' = 'care'): void {
   if (actor) actor.attending = false
   actor = target
   actor.attending = true
-  mode = 'care'
+  mode = view
   chosenPlace = null
   renaming = false
   lastNear = performance.now()
@@ -231,9 +231,22 @@ function renderCare(target: PetActor): void {
       actions.append(
         button(label, () => {
           care(target, action)
-          refresh()
+          // สั่งนอน → ปิดแผงให้เห็นว่าหลับจริง
+          if (action === 'rest') closePanel()
+          else refresh()
         }),
       )
+    actions.append(
+      button(
+        '🧭 สำรวจ',
+        () => {
+          mode = 'explore'
+          signature = ''
+          render()
+        },
+        'explore-open',
+      ),
+    )
     root.append(actions)
     // ของพิเศษจากการสำรวจ
     const bag = Object.entries(collection.inventory.items) as [SpecialItem, number][]
@@ -277,14 +290,6 @@ function renderCare(target: PetActor): void {
     footer.append(
       button('♥ จับคู่', () => {
         mode = 'pair'
-        signature = ''
-        render()
-      }),
-    )
-  if (stage !== 'egg')
-    footer.append(
-      button('🧭 สำรวจ', () => {
-        mode = 'explore'
         signature = ''
         render()
       }),

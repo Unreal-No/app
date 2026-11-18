@@ -31,6 +31,9 @@ jobs:
         run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
       - name: Build installer
         run: pnpm desktop:build
+        env:
+          # รุ่นที่แสดงใน tooltip ของ tray และสมุดฟาร์ม (commit ของ branch ไม่ใช่ merge commit ของ PR)
+          BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/upload-artifact@v4
         with:
           name: mochimon-windows-installer

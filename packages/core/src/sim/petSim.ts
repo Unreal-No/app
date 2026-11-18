@@ -125,6 +125,9 @@ export function createPet(
   }
 }
 
+/** หลับจนพลังเต็มแล้วยังงีบต่อได้อีกเท่านี้ (วินาที) */
+export const NAP_AFTER_FULL = 45
+
 /** เวลาฟักไข่พื้นฐาน (วินาทีที่ผู้ใช้อยู่หน้าจอ) */
 export const INCUBATION_SECONDS = 600
 
@@ -205,8 +208,8 @@ export function tickPet(
 
   let behavior = pet.behavior
   let behaviorTimer = pet.behaviorTimer - dtSec
-  // ตื่นเองเมื่อพักพอแล้ว
-  if (asleep && needs.energy > 0.95) behaviorTimer = 0
+  // ตื่นเองเมื่อพักพอแล้ว — งีบต่ออีกไม่เกิน 45 วินาที (สั่งนอนตอนพลังเกือบเต็มก็ยังได้งีบ)
+  if (asleep && needs.energy > 0.95) behaviorTimer = Math.min(behaviorTimer, NAP_AFTER_FULL)
   if (behaviorTimer <= 0) {
     behavior = chooseBehavior(
       {

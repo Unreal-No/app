@@ -558,7 +558,7 @@ export class PetActor {
                 : 'auto',
       speed: moving ? (behavior === 'zoomies' ? 1 : 0.6) : 0,
       emotion: this.emotion,
-      asleep: asleep && !flying && !moving && !this.attending,
+      asleep: asleep && !flying && !moving,
       held: this.held,
       flying,
       lookX: THREE.MathUtils.clamp(look - this.yaw * 0.6, -1, 1),
