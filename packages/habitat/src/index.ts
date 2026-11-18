@@ -354,78 +354,193 @@ export function createHabitat(kind: HabitatKind): Habitat {
   }
 }
 
-/**
- * โหลแก้วลอยน้ำสำหรับสัตว์น้ำบนจอ — รัศมี 1 หน่วย ก้นโหลอยู่ที่ y = 0
- * สัตว์ว่ายอยู่ข้างใน (ระดับ `floorY`..`waterTop`)
- */
-export interface Bowl {
-  root: THREE.Group
-  radius: number
-  /** ระดับพื้นทรายในโหล */
+/** ห้องหนึ่งชั้นของคอนโดตู้ปลา (หน่วยเดียวกับ root ก่อน scale) */
+export interface CondoRoom {
+  /** ระดับพื้นทรายด้านใน */
   floorY: number
-  /** ระดับผิวน้ำ */
-  waterTop: number
+  /** ความสูงช่องน้ำ */
+  height: number
+}
+
+/**
+ * คอนโดตู้ปลา: ตู้กระจกสี่เหลี่ยมซ้อนกันเป็นชั้น (1 ชั้นต่อสัตว์น้ำ 1 ตัว) มีคานสีพาสเทลคั่น หลังคาทรงบ้าน
+ * และท่อฟองอากาศด้านข้าง — ฐานอยู่ที่ y = 0, กว้าง `width` หน่วย
+ */
+export interface AquariumCondo {
+  root: THREE.Group
+  floors: number
+  width: number
+  /** ครึ่งความกว้างด้านในที่ว่ายได้ */
+  halfWidth: number
+  rooms: CondoRoom[]
+  /** ความสูงทั้งหลังรวมหลังคา */
+  height: number
   update(dt: number): void
   dispose(): void
 }
 
-export function createBowl(): Bowl {
+const CONDO_W = 3.0
+const CONDO_D = 1.1
+const ROOM_H = 1.15
+const SLAB = 0.14
+const BASE = 0.18
+const FRAME_COLORS = ['#f6c6d8', '#c9e4f6', '#d8f0c8', '#f6e2b5']
+
+export function createAquariumCondo(floors: number): AquariumCondo {
   const k = new Kit()
-  const center = 0.92
-  const opening = 0.42
-  // ทรายก้นโหล + กรวด + สาหร่าย
-  k.add(k.ball(0.62, 1, 0.16, 1), soft('#f3e2b5', { top: '#fff3d6', span: 0.15 }), [0, 0.1, 0])
-  k.add(k.ball(0.09, 1.2, 0.7, 1), soft('#b9a6d8'), [0.32, 0.17, 0.18])
-  k.add(k.ball(0.07, 1, 0.7, 1.2), soft('#ff9fbe'), [-0.28, 0.16, 0.24])
-  for (let i = 0; i < 3; i++) {
-    const weed = k.group([-0.42 + i * 0.12, 0.14, -0.25 + i * 0.05])
-    const h = 0.32 + i * 0.08
-    const blade = k.add(
-      new THREE.ConeGeometry(0.03, h, 6),
-      soft('#4fbf8a', { top: '#9be6b8', span: h }),
-      [0, h / 2, 0],
-      weed,
+  const n = Math.max(1, Math.min(4, Math.round(floors)))
+  const rooms: CondoRoom[] = []
+  // ฐาน
+  k.add(
+    new THREE.BoxGeometry(CONDO_W + 0.2, BASE, CONDO_D + 0.2),
+    soft('#c9a6e8', { top: '#e3ccff', span: BASE }),
+    [0, BASE / 2, 0],
+  )
+  const decor: ((g: THREE.Group, floor: number) => void)[] = [
+    // ปะการัง
+    (g) => {
+      for (let i = 0; i < 4; i++) {
+        const c = k.add(
+          new THREE.CapsuleGeometry(0.04, 0.22, 4, 8),
+          soft('#ff8fb3', { top: '#ffd0df', span: 0.3 }),
+          [-0.9 + i * 0.06, 0.16, -0.25],
+          g,
+        )
+        c.rotation.z = (i - 1.5) * 0.4
+      }
+      k.add(k.ball(0.1, 1.2, 0.7, 1), soft('#b9a6d8'), [0.85, 0.07, -0.2], g)
+    },
+    // ปราสาทเล็ก
+    (g) => {
+      k.add(
+        new THREE.CylinderGeometry(0.14, 0.16, 0.36, 10),
+        soft('#f3e2b5', { top: '#fff3d6', span: 0.36 }),
+        [0.85, 0.18, -0.25],
+        g,
+      )
+      k.add(new THREE.ConeGeometry(0.17, 0.2, 10), soft('#ff9fbe'), [0.85, 0.46, -0.25], g)
+      k.add(k.ball(0.08, 1.3, 0.6, 1), soft('#9ad7c8'), [-0.8, 0.05, -0.15], g)
+    },
+    // หินกับดาวทะเล
+    (g) => {
+      k.add(
+        k.ball(0.16, 1.3, 0.7, 1),
+        soft('#cfd6e6', { top: '#eef2fa', span: 0.2 }),
+        [-0.85, 0.09, -0.22],
+        g,
+      )
+      const star = k.add(
+        new THREE.CylinderGeometry(0.1, 0.1, 0.03, 5),
+        soft('#ffb07a'),
+        [0.7, 0.04, 0.1],
+        g,
+      )
+      star.rotation.y = 0.3
+    },
+    // หอยกับเปลือก
+    (g) => {
+      k.add(
+        k.ball(0.11, 1, 0.6, 1.2),
+        soft('#ffd0df', { top: '#fff0f5', span: 0.1 }),
+        [0.8, 0.06, -0.2],
+        g,
+      )
+      k.add(k.ball(0.07, 1, 0.8, 1), soft('#f6e2b5'), [-0.75, 0.05, 0.05], g)
+    },
+  ]
+  let y = BASE
+  for (let i = 0; i < n; i++) {
+    const room = k.group([0, y, 0])
+    // ทรายก้นตู้
+    k.add(
+      new THREE.BoxGeometry(CONDO_W - 0.08, 0.1, CONDO_D - 0.08),
+      soft('#f3e2b5', { top: '#fff3d6', span: 0.1 }),
+      [0, 0.05, 0],
+      room,
     )
-    blade.scale.z = 0.4
-    k.anims.push((t) => {
-      weed.rotation.z = Math.sin(t * 1.3 + i * 1.9) * 0.18
-    })
+    decor[i % decor.length]!(room, i)
+    // สาหร่ายไหว
+    for (let j = 0; j < 2; j++) {
+      const weed = k.group([-0.55 + j * 1.15, 0.1, -0.35], room)
+      const h = 0.4 + j * 0.15
+      const blade = k.add(
+        new THREE.ConeGeometry(0.035, h, 6),
+        soft('#4fbf8a', { top: '#9be6b8', span: h }),
+        [0, h / 2, 0],
+        weed,
+      )
+      blade.scale.z = 0.4
+      k.anims.push((t) => {
+        weed.rotation.z = Math.sin(t * 1.3 + i * 1.7 + j) * 0.18
+      })
+    }
+    // เนื้อน้ำ + กระจก
+    k.add(
+      new THREE.BoxGeometry(CONDO_W - 0.04, ROOM_H - 0.04, CONDO_D - 0.04),
+      soft('#6fc3f0', { opacity: 0.2, side: THREE.BackSide }),
+      [0, ROOM_H / 2, 0],
+      room,
+    )
+    k.add(
+      new THREE.BoxGeometry(CONDO_W, ROOM_H, CONDO_D),
+      soft('#d8f2ff', { glass: true, opacity: 0.22 }),
+      [0, ROOM_H / 2, 0],
+      room,
+    ).renderOrder = 5
+    rooms.push({ floorY: y + 0.1, height: ROOM_H - 0.12 })
+    y += ROOM_H
+    // คานคั่นชั้น/ขอบบน
+    k.add(
+      new THREE.BoxGeometry(CONDO_W + 0.16, SLAB, CONDO_D + 0.16),
+      soft(FRAME_COLORS[i % FRAME_COLORS.length]!, { top: '#ffffff', span: SLAB * 3 }),
+      [0, y + SLAB / 2, 0],
+    )
+    y += SLAB
   }
-  // ฟองอากาศ
-  const bubbles = Array.from({ length: 5 }, (_, i) => ({
-    b: k.add(k.ball(0.025 + k.rand() * 0.02), soft('#e6f6ff', { glass: true, opacity: 0.55 })),
-    x: (k.rand() - 0.5) * 0.9,
-    z: (k.rand() - 0.5) * 0.6,
-    phase: i / 5,
-    speed: 0.12 + k.rand() * 0.08,
+  // เสามุม
+  const pillar = soft('#ffffff', { top: '#f3e9f7', span: 1 })
+  for (const sx of [-1, 1])
+    for (const sz of [-1, 1])
+      k.add(new THREE.BoxGeometry(0.08, y - BASE, 0.08), pillar, [
+        sx * (CONDO_W / 2 + 0.02),
+        BASE + (y - BASE) / 2,
+        sz * (CONDO_D / 2 + 0.02),
+      ])
+  // หลังคาทรงบ้าน + ปล่องไฟ
+  const roof = k.add(
+    new THREE.ConeGeometry((CONDO_W + 0.4) * 0.72, 0.7, 4),
+    soft('#ff9fb5', { top: '#ffd0dc', span: 0.7 }),
+    [0, y + 0.35, 0],
+  )
+  roof.rotation.y = Math.PI / 4
+  roof.scale.z = 0.55
+  k.add(new THREE.BoxGeometry(0.18, 0.32, 0.18), soft('#f6e2b5'), [0.65, y + 0.5, 0])
+  // ท่อฟองอากาศด้านข้าง
+  const pipeX = CONDO_W / 2 + 0.16
+  k.add(
+    new THREE.CylinderGeometry(0.05, 0.05, y - BASE, 10),
+    soft('#e6f6ff', { glass: true, opacity: 0.45 }),
+    [pipeX, BASE + (y - BASE) / 2, 0.2],
+  ).renderOrder = 5
+  const bubbles = Array.from({ length: 4 + n * 2 }, (_, i) => ({
+    b: k.add(k.ball(0.03 + k.rand() * 0.015), soft('#e6f6ff', { glass: true, opacity: 0.6 })),
+    phase: i / (4 + n * 2),
   }))
-  const waterTop = center + Math.cos(opening) * 0.98 - 0.08
+  const top = y
   k.anims.push((t) => {
-    for (const { b, x, z, phase, speed } of bubbles) {
-      const p = (t * speed + phase) % 1
-      b.position.set(x + Math.sin(t * 2 + phase * 9) * 0.03, 0.2 + p * (waterTop - 0.25), z)
-      b.scale.setScalar(Math.sin(p * Math.PI) * 0.9 + 0.2)
+    for (const { b, phase } of bubbles) {
+      const p = (t * 0.12 + phase) % 1
+      b.position.set(pipeX + Math.sin(t * 3 + phase * 9) * 0.01, BASE + p * (top - BASE), 0.2)
     }
   })
-  // เนื้อน้ำ (ด้านใน) + แก้ว (เปิดปากด้านบน) + ขอบปากโหล
-  const shell = (r: number) =>
-    new THREE.SphereGeometry(r, 36, 22, 0, Math.PI * 2, opening, Math.PI - opening)
-  k.add(shell(0.97), soft('#6fc3f0', { opacity: 0.22, side: THREE.BackSide }), [0, center, 0])
-  k.add(shell(1), soft('#d8f2ff', { glass: true, opacity: 0.32 }), [0, center, 0]).renderOrder = 5
-  const rimR = Math.sin(opening)
-  const rim = k.add(
-    new THREE.TorusGeometry(rimR, 0.035, 8, 40),
-    soft('#eaf8ff', { glass: true, opacity: 0.6 }),
-    [0, center + Math.cos(opening), 0],
-  )
-  rim.rotation.x = Math.PI / 2
-  rim.renderOrder = 6
   let time = 0
   return {
     root: k.root,
-    radius: 1,
-    floorY: 0.2,
-    waterTop,
+    floors: n,
+    width: CONDO_W,
+    halfWidth: CONDO_W / 2 - 0.12,
+    rooms,
+    height: y + 0.7,
     update(dt) {
       time += dt
       for (const anim of k.anims) anim(time)

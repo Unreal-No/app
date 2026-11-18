@@ -44,6 +44,7 @@ import { signRect, updateSigns } from './signs'
 import { altarRect, openAltar, summonWith, toggleAltar, updateAltar } from './summon'
 import { bookRect, openBook, toggleBook, updateBook } from './book'
 import { updateAmbient } from './ambient'
+import { aquariumRect, updateAquarium } from './aquarium'
 import { assembleFossil, finishExpeditionsNow, sendOnExpedition } from './adventure'
 import {
   offer,
@@ -288,6 +289,7 @@ function frame(now: number): void {
     saveNow()
   }
 
+  updateAquarium(dt)
   for (const actor of pets) actor.update(dt, pets)
   for (const actor of walkers) actor.update(dt, [])
   updateVisitor(dt)
@@ -351,6 +353,7 @@ async function start(): Promise<void> {
       offer,
       visitor: visitorActor,
       visitorInfo,
+      aquariumRect,
       /** สร้างสัตว์สายพันธุ์ที่ระบุบนจอ (ใช้ทดสอบ) */
       spawn: (species: string, stage: LifeStage = 'adult', x?: number) =>
         addPet(

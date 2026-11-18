@@ -80,6 +80,20 @@ export const mode = {
   reserveRight: 0,
 }
 
+/** ช่วงบนพื้นที่สัตว์บกไม่เดินเข้าไป (เช่น ฐานคอนโดตู้ปลา) — px บนแกน x */
+export const blockedSpans: { x1: number; x2: number }[] = []
+/** ถ้า x อยู่ในช่วงห้าม ให้เลื่อนไปขอบที่ใกล้กว่า (ขอบที่ยังอยู่ในจอ) */
+export function outsideSpans(x: number, margin = 0): number {
+  for (const span of blockedSpans) {
+    const left = span.x1 - margin
+    const right = span.x2 + margin
+    if (x <= left || x >= right) continue
+    const goRight = left < 40 || (right <= layout.width - 40 && right - x < x - left)
+    return goRight ? right : left
+  }
+  return x
+}
+
 /** ขอบขวาสุดที่สัตว์ไปยืนได้ตอนนี้ */
 export const walkMaxX = (margin: number): number => layout.width - margin - mode.reserveRight
 /** ควรงดคำพูดทั่วไปไหม (คำเตือนที่ผู้ใช้ตั้งเองยังพูดได้เสมอ) */

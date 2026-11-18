@@ -63,7 +63,7 @@ onTick((dt) => {
   if (accum < 5) return
   const step = accum
   accum = 0
-  const awake = pets.filter((p) => !p.isEgg && !p.inBowl && !p.flying)
+  const awake = pets.filter((p) => !p.isEgg && !p.inTank && !p.flying)
   collection.relations = tickRelations(
     collection.relations,
     awake.map((p) => ({

@@ -10,7 +10,6 @@ import {
   type Temperament,
 } from '@mochimon/core'
 import { createBlobShadow, Creature } from '@mochimon/creature'
-import { createBowl, type Bowl } from '@mochimon/habitat'
 import { Bubble, floatIcons } from './fx'
 import { LINES, STAGE_TH } from './text'
 import {
@@ -20,6 +19,7 @@ import {
   groundLevel,
   hushed,
   layout,
+  outsideSpans,
   PX_PER_UNIT,
   restSpot,
   rng,
@@ -37,8 +37,19 @@ const PHYSICS_STEP = 1 / 120
 /** ตำแหน่งพักรอบจุดพักผ่อน เรียงตามลำดับของสัตว์ (ไม่ให้กองทับกัน) */
 const REST_OFFSETS = [0, -78, 78, -156]
 const FLY_SPEED = 150
-/** ขนาดปลาเมื่ออยู่ในโหล (เทียบกับขนาดจริง) */
-const FISH_IN_BOWL = 0.72
+const SWIM_SPEED = 45
+
+/** ห้องในคอนโดตู้ปลาที่สัตว์น้ำอยู่ (พิกัดโลก px) — คอนโดเป็นคนกำหนดทุกเฟรม */
+export interface TankRoom {
+  /** กึ่งกลางแนวนอนของห้อง */
+  cx: number
+  /** ระดับพื้นทรายด้านใน */
+  floorY: number
+  height: number
+  halfWidth: number
+  /** ความลึก (z) ของกึ่งกลางตู้ */
+  z: number
+}
 /** บินได้สูงสุดเหนือพื้น (px) — ไม่ขึ้นไปวนเวียนกลางงานของผู้ใช้ */
 const FLY_CEILING = 360
 
@@ -85,9 +96,15 @@ export class PetActor {
   private standing: { perch: Perch; winX: number; winY: number } | null = null
   /** ขอบหน้าต่างที่ตั้งใจจะกระโดดขึ้นไป */
   private climb: Perch | null = null
-  /** สัตว์น้ำอยู่ในโหลแก้วลอยน้ำ */
-  private bowl: Bowl | null = null
-  private bowlScale = 1
+  /** สัตว์น้ำ (เดินบนบกไม่ได้) → อาศัยในคอนโดตู้ปลา */
+  aquatic = false
+  /** ห้องในคอนโดตู้ปลา (null = ยังไม่มีห้อง/ไม่ใช่สัตว์น้ำ) */
+  tank: TankRoom | null = null
+  /** ย่อตัวให้พอดีห้อง */
+  private tankScale = 1
+  /** ตำแหน่งที่ว่ายไปในห้อง (−1..1 ของความกว้าง) */
+  private swimGoal = 0
+  private swimAt = 0
   /** กำลังบิน: จุดหมายกลางอากาศ / กำลังร่อนลงจอด */
   private flight: { tx: number; ty: number; landing: boolean } | null = null
   private clock = 0
@@ -116,20 +133,8 @@ export class PetActor {
     })
     this.creature.setPixelScale(PX_PER_UNIT)
     this.holder.add(this.creature.root)
-    this.bowl?.dispose()
-    this.bowl?.root.removeFromParent()
-    this.bowl = null
-    if (nurture.stage !== 'egg' && viewPet(this.state).phenotype.habitat === 'water') {
-      // สัตว์น้ำเดินบนบกไม่ได้ → อยู่ในโหลแก้วที่เลื่อนไปตามพื้นได้
-      // ย่อปลาลงเล็กน้อยให้ว่ายในโหลได้โดยไม่ล้นแก้ว และโหลไม่ใหญ่เกินเพื่อนๆ
-      const size = this.creature.size
-      this.creature.root.scale.setScalar(FISH_IN_BOWL)
-      this.bowlScale = Math.max(size.x, size.y, size.z) * FISH_IN_BOWL * 0.62 + 0.12
-      this.bowl = createBowl()
-      this.bowl.root.scale.setScalar(this.bowlScale)
-      this.holder.add(this.bowl.root)
-    }
-    this.shadow = createBlobShadow(this.bowl ? this.bowlScale * 0.8 : this.creature.footprint, 0.2)
+    this.aquatic = nurture.stage !== 'egg' && viewPet(this.state).phenotype.habitat === 'water'
+    this.shadow = createBlobShadow(this.creature.footprint, 0.2)
     this.holder.add(this.shadow)
     this.built = { stage: nurture.stage, fat: nurture.fat, fitness: nurture.fitness }
   }
@@ -172,8 +177,8 @@ export class PetActor {
   get flying(): boolean {
     return this.flight !== null
   }
-  get inBowl(): boolean {
-    return this.bowl !== null
+  get inTank(): boolean {
+    return this.tank !== null
   }
   /** บินได้: ปีกบินได้และโตพ้นวัยเบบี้ */
   get canFly(): boolean {
@@ -182,14 +187,19 @@ export class PetActor {
   get isEgg(): boolean {
     return this.state.nurture.stage === 'egg'
   }
+  /** ขนาดที่แสดง (ในตู้ปลาถูกย่อให้พอดีห้อง) */
+  private get bodyScale(): number {
+    return this.tank ? this.tankScale : 1
+  }
   get heightPx(): number {
-    return (this.bowl ? this.bowlScale * 1.9 : this.creature.size.y) * PX_PER_UNIT
+    return this.creature.size.y * PX_PER_UNIT * this.bodyScale
   }
   /** วงกลมพื้นที่จับต้องได้ (พิกัดจอ) */
   get hit(): { x: number; y: number; r: number } {
-    const r = this.bowl
-      ? this.bowlScale * PX_PER_UNIT * 1.02
-      : Math.max(this.heightPx * 0.55, this.creature.footprint * PX_PER_UNIT * 1.2)
+    const r = Math.max(
+      this.heightPx * 0.55,
+      this.creature.footprint * PX_PER_UNIT * 1.2 * this.bodyScale,
+    )
     return { x: this.x, y: flipY(this.y + this.heightPx * 0.5), r }
   }
   contains(px: number, py: number): boolean {
@@ -299,7 +309,7 @@ export class PetActor {
 
   /** เล็งขอบหน้าต่างสักแห่งแล้วเดินไปใต้ขอบนั้นเพื่อกระโดดขึ้น — คืน false ถ้าไม่มีขอบให้ปีน */
   aimForLedge(): boolean {
-    if (this.isEgg || this.bowl || this.state.nurture.stage === 'baby') return false
+    if (this.isEgg || this.aquatic || this.state.nurture.stage === 'baby') return false
     const here = this.standing?.perch.windowId
     const perches = activePerches().filter((perch) => perch.windowId !== here)
     if (perches.length === 0) return false
@@ -420,6 +430,37 @@ export class PetActor {
     return true
   }
 
+  /** ว่ายในห้องของคอนโด: ไปมาซ้าย-ขวา หันตัวนุ่มนวล หลับก็นอนนิ่งใกล้พื้นทราย — คืน true ถ้ากำลังว่าย */
+  private swim(dt: number, tank: TankRoom, asleep: boolean): boolean {
+    const size = this.creature.size
+    const length = Math.max(size.x, size.z) * PX_PER_UNIT
+    this.tankScale = Math.min(
+      (tank.height * 0.78) / (size.y * PX_PER_UNIT),
+      (tank.halfWidth * 2 * 0.48) / length,
+    )
+    const reach = Math.max(0, tank.halfWidth - (length * this.tankScale) / 2 - 6)
+    this.swimAt -= dt
+    if (this.swimAt <= 0 && !asleep) {
+      // ว่ายไปอีกฝั่งของห้องเป็นส่วนใหญ่ (ไม่ขยับนิดเดียวแล้วหยุด)
+      const side = this.swimGoal > 0 ? -1 : 1
+      this.swimGoal = side * rng.range(0.4, 1)
+      this.swimAt = rng.range(2, 5)
+    }
+    const goalX = tank.cx + this.swimGoal * reach
+    const dx = goalX - this.x
+    let moving = false
+    if (Math.abs(dx) > 3 && !asleep) {
+      this.x += Math.sign(dx) * Math.min(Math.abs(dx), SWIM_SPEED * dt)
+      this.facing = dx > 0 ? 1 : -1
+      moving = true
+    }
+    this.x = THREE.MathUtils.clamp(this.x, tank.cx - reach, tank.cx + reach)
+    const body = size.y * PX_PER_UNIT * this.tankScale
+    const restY = tank.floorY + (asleep ? 4 : (tank.height - body) * 0.45)
+    this.y = THREE.MathUtils.damp(this.y, restY, 3, dt)
+    return moving
+  }
+
   update(dt: number, others: PetActor[]): void {
     this.clock += dt
     const behavior = this.state.behavior
@@ -437,6 +478,11 @@ export class PetActor {
       this.airborne = false
       this.standing = null
       this.climb = null
+    } else if (this.tank) {
+      this.airborne = false
+      this.standing = null
+      this.errand = null
+      moving = this.swim(dt, this.tank, asleep && !this.attending)
     } else if (this.flight || wantsFly) {
       moving = this.fly(dt, wantsFly)
     } else if (this.airborne || this.y > ground + 40) {
@@ -485,10 +531,17 @@ export class PetActor {
         this.pickTarget(behavior)
         this.makeRoom(others)
       }
+      // ไม่เดินเข้าไปยืนในฐานของคอนโดตู้ปลา (บนขอบหน้าต่างไม่เกี่ยว)
+      if (!this.standing && !this.isEgg) {
+        const margin = this.hit.r * 0.6
+        if (this.targetX !== null) this.targetX = outsideSpans(this.targetX, margin)
+        else if (outsideSpans(this.x, margin) !== this.x)
+          this.targetX = outsideSpans(this.x, margin)
+      }
       if (this.targetX !== null) {
         const dx = this.targetX - this.x
         if (Math.abs(dx) > 6) {
-          const hurry = (behavior === 'zoomies' ? 3 : this.errand ? 1.6 : 1) * (this.bowl ? 0.5 : 1)
+          const hurry = behavior === 'zoomies' ? 3 : this.errand ? 1.6 : 1
           const speed = WALK_SPEED * hurry * (0.7 + this.creature.size.y * 0.5)
           this.x += Math.sign(dx) * Math.min(Math.abs(dx), speed * dt)
           this.facing = dx > 0 ? 1 : -1
@@ -512,31 +565,22 @@ export class PetActor {
 
     this.moving = moving
     // หันข้างตอนเดิน หันเฉียงมาทางกล้องตอนยืน
-    const yawTarget = this.facing * (moving ? 1.15 : 0.35)
+    // ในตู้ปลาหันข้างเต็มที่ตอนว่าย (เห็นทั้งตัว)
+    const yawTarget = this.facing * (this.tank ? (moving ? 1.35 : 0.85) : moving ? 1.15 : 0.35)
     this.yaw = THREE.MathUtils.damp(this.yaw, yawTarget, 8, dt)
     this.squash = Math.max(0, this.squash - dt * 5)
     const sq = Math.sin(this.squash * Math.PI) * 0.18
     // ตัวที่ถูกอุ้มอยู่หน้าสุด; ตัวอื่นเรียงตามลำดับ ไม่ให้โมเดลทะลุกัน
     // บิน: ลอยขึ้นลงเบาๆ
     const bob = this.flight && !this.flight.landing ? Math.sin(this.clock * 3) * 6 : 0
-    this.holder.position.set(this.x, this.y + bob, this.held ? 1600 : this.slot * 300)
-    this.holder.scale.set(PX_PER_UNIT * (1 + sq), PX_PER_UNIT * (1 - sq), PX_PER_UNIT)
+    const swimBob = this.tank && !this.held ? Math.sin(this.clock * 1.4 + this.slot) * 4 : 0
+    const z = this.held ? 1600 : this.tank ? this.tank.z : this.slot * 300
+    this.holder.position.set(this.x, this.y + bob + swimBob, z)
+    const scale = PX_PER_UNIT * this.bodyScale
+    this.holder.scale.set(scale * (1 + sq), scale * (1 - sq), scale)
     this.creature.root.rotation.y = this.yaw
-    if (this.bowl) {
-      // ว่ายวนช้าๆ ในโหล
-      const s = this.bowlScale
-      const size = this.creature.size.clone().multiplyScalar(FISH_IN_BOWL)
-      const sway = Math.sin(this.clock * 0.6 + this.slot)
-      this.creature.root.position.set(
-        sway * s * 0.22,
-        s * 0.95 - size.y * 0.5 + Math.sin(this.clock * 1.3) * s * 0.05,
-        0,
-      )
-      if (!moving)
-        this.creature.root.rotation.y = Math.cos(this.clock * 0.6 + this.slot) > 0 ? 0.9 : -0.9
-      this.bowl.update(dt)
-    }
-    if (this.shadow) this.shadow.visible = !this.held && !this.airborne && !this.flight
+    if (this.shadow)
+      this.shadow.visible = !this.held && !this.airborne && !this.flight && !this.tank
 
     const hit = this.hit
     const look = cursor.seen ? THREE.MathUtils.clamp((cursor.x - hit.x) / 380, -1, 1) : 0
@@ -569,7 +613,6 @@ export class PetActor {
 
   dispose(): void {
     this.creature.dispose()
-    this.bowl?.dispose()
     if (this.shadow) {
       this.shadow.geometry.dispose()
       ;(this.shadow.material as THREE.Material).dispose()
