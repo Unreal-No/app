@@ -148,6 +148,7 @@ const BEHAVIOR_DURATION: Record<Behavior, [number, number]> = {
   hide: [5, 12],
   beg: [5, 10],
   groom: [5, 10],
+  fly: [8, 22],
 }
 
 /** ผลต่อ needs ต่อวินาทีของพฤติกรรมที่สัตว์ทำเอง */
@@ -217,6 +218,7 @@ export function tickPet(
         cursorNear: world.cursorNear,
         userActive: world.userActive,
         quiet: world.quiet,
+        canFly: phenotype.habitat === 'sky' && pet.nurture.stage !== 'baby',
       },
       rng,
     )

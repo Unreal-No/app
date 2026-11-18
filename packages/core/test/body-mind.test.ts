@@ -272,3 +272,59 @@ describe('petSim', () => {
     expect(pet.behavior).toBe('idle')
   })
 })
+
+describe('บินเล่น', () => {
+  const base = {
+    needs: fullNeeds(),
+    emotion: { valence: 0.5, arousal: 0.6, mood: 0.3 },
+    personality: {
+      affection: 0.5,
+      mischief: 0.5,
+      playful: 0.8,
+      sleepy: 0.2,
+      shy: 0.2,
+      curious: 0.8,
+      appetite: 0.5,
+    },
+    hour: 14,
+    chronotype: 0.5,
+    cursorNear: false,
+    userActive: true,
+    quiet: false,
+  }
+
+  it('บินได้เฉพาะตัวที่มีปีกบินได้', () => {
+    expect(scoreBehaviors({ ...base, canFly: false }).fly).toBe(0)
+    expect(scoreBehaviors(base).fly).toBe(0)
+    expect(scoreBehaviors({ ...base, canFly: true }).fly).toBeGreaterThan(0.5)
+  })
+
+  it('ระหว่างโหมดเงียบหรือเหนื่อยแทบไม่บิน', () => {
+    const free = scoreBehaviors({ ...base, canFly: true }).fly
+    expect(scoreBehaviors({ ...base, canFly: true, quiet: true }).fly).toBeLessThan(free * 0.1)
+    const tired = { ...base, canFly: true, needs: { ...fullNeeds(), energy: 0.1 } }
+    expect(scoreBehaviors(tired).fly).toBeLessThan(free * 0.4)
+  })
+
+  it('นกโตแล้วเลือกบินบ้าง ลูกนกยังไม่บิน', () => {
+    const rng = new Rng('fly')
+    const bird = (stage: 'baby' | 'adult') =>
+      createPet('นก', createFounder('chick', new Rng('b')), { ...DEFAULT_NURTURE, stage })
+    const count = (stage: 'baby' | 'adult') => {
+      let pet = bird(stage)
+      let flights = 0
+      for (let i = 0; i < 400; i++) {
+        pet = tickPet(
+          { ...pet, behaviorTimer: 0 },
+          1,
+          { hour: 14, cursorNear: false, userActive: true, quiet: false },
+          rng,
+        )
+        if (pet.behavior === 'fly') flights++
+      }
+      return flights
+    }
+    expect(count('adult')).toBeGreaterThan(20)
+    expect(count('baby')).toBe(0)
+  })
+})

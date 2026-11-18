@@ -27,7 +27,8 @@ varying float vHeight;
 void main() {
   vec3 n = normalize(vNormal);
   if (!gl_FrontFacing) n = -n;
-  vec3 viewDir = normalize(-vViewPos);
+  // กล้อง orthographic (ฉาก overlay) มองตรงตามแกน z — ใช้ตำแหน่งแทนไม่ได้เพราะวัตถุอยู่ห่างจากจุดกำเนิดมาก
+  vec3 viewDir = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(-vViewPos);
   vec3 col = mix(uColor, uTop, vHeight);
   float wrap = dot(n, normalize(vec3(-0.3, 0.75, 0.6))) * 0.5 + 0.5;
   vec3 lit = mix(col * vec3(0.62, 0.62, 0.88), col, smoothstep(0.28, 0.82, wrap));

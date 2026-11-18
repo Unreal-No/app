@@ -14,6 +14,8 @@ export type Behavior =
   | 'hide'
   | 'beg'
   | 'groom'
+  /** บินเล่น (เฉพาะสัตว์ที่มีปีกบินได้) */
+  | 'fly'
 
 export const BEHAVIORS: Behavior[] = [
   'idle',
@@ -26,6 +28,7 @@ export const BEHAVIORS: Behavior[] = [
   'hide',
   'beg',
   'groom',
+  'fly',
 ]
 
 export interface BehaviorContext {
@@ -41,6 +44,8 @@ export interface BehaviorContext {
   userActive: boolean
   /** โหมดเงียบ (ประชุม/โฟกัส) → ไม่รบกวน */
   quiet: boolean
+  /** มีปีกที่บินได้และโตพอจะบิน */
+  canFly?: boolean
 }
 
 /** ความง่วงตามนาฬิกาชีวิต 0..1 — จุดง่วงสุดเลื่อนตาม chronotype (ตี 2 สำหรับคนตื่นเช้า → ตี 5 สำหรับนกฮูก) */
@@ -77,6 +82,12 @@ export function scoreBehaviors(ctx: BehaviorContext): Record<Behavior, number> {
     // ขออาหารพอประมาณ: หิวแค่ไหนก็ไม่เรียกร้องจนกลบพฤติกรรมอื่น (ไม่กดดันผู้ใช้)
     beg: calm * hungry * hungry * (0.4 + p.appetite * 0.45),
     groom: (1 - needs.hygiene) * 0.75 * (1 - p.mischief * 0.4),
+    // บินเล่นตอนสดชื่น (ระหว่างโหมดเงียบบินน้อยลงมาก — ไม่วนเวียนกลางจอตอนผู้ใช้ตั้งใจทำงาน)
+    fly: ctx.canFly
+      ? calm * calm * (0.3 + p.playful * 0.3 + p.curious * 0.3 + emotion.arousal * 0.25) -
+        tired * 0.8 -
+        night * 0.25
+      : 0,
   }
 }
 

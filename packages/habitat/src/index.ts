@@ -351,3 +351,83 @@ export function createHabitat(kind: HabitatKind): Habitat {
     dispose: () => kit.dispose(),
   }
 }
+
+/**
+ * โหลแก้วลอยน้ำสำหรับสัตว์น้ำบนจอ — รัศมี 1 หน่วย ก้นโหลอยู่ที่ y = 0
+ * สัตว์ว่ายอยู่ข้างใน (ระดับ `floorY`..`waterTop`)
+ */
+export interface Bowl {
+  root: THREE.Group
+  radius: number
+  /** ระดับพื้นทรายในโหล */
+  floorY: number
+  /** ระดับผิวน้ำ */
+  waterTop: number
+  update(dt: number): void
+  dispose(): void
+}
+
+export function createBowl(): Bowl {
+  const k = new Kit()
+  const center = 0.92
+  const opening = 0.42
+  // ทรายก้นโหล + กรวด + สาหร่าย
+  k.add(k.ball(0.62, 1, 0.16, 1), soft('#f3e2b5', { top: '#fff3d6', span: 0.15 }), [0, 0.1, 0])
+  k.add(k.ball(0.09, 1.2, 0.7, 1), soft('#b9a6d8'), [0.32, 0.17, 0.18])
+  k.add(k.ball(0.07, 1, 0.7, 1.2), soft('#ff9fbe'), [-0.28, 0.16, 0.24])
+  for (let i = 0; i < 3; i++) {
+    const weed = k.group([-0.42 + i * 0.12, 0.14, -0.25 + i * 0.05])
+    const h = 0.32 + i * 0.08
+    const blade = k.add(
+      new THREE.ConeGeometry(0.03, h, 6),
+      soft('#4fbf8a', { top: '#9be6b8', span: h }),
+      [0, h / 2, 0],
+      weed,
+    )
+    blade.scale.z = 0.4
+    k.anims.push((t) => {
+      weed.rotation.z = Math.sin(t * 1.3 + i * 1.9) * 0.18
+    })
+  }
+  // ฟองอากาศ
+  const bubbles = Array.from({ length: 5 }, (_, i) => ({
+    b: k.add(k.ball(0.025 + k.rand() * 0.02), soft('#e6f6ff', { glass: true, opacity: 0.55 })),
+    x: (k.rand() - 0.5) * 0.9,
+    z: (k.rand() - 0.5) * 0.6,
+    phase: i / 5,
+    speed: 0.12 + k.rand() * 0.08,
+  }))
+  const waterTop = center + Math.cos(opening) * 0.98 - 0.08
+  k.anims.push((t) => {
+    for (const { b, x, z, phase, speed } of bubbles) {
+      const p = (t * speed + phase) % 1
+      b.position.set(x + Math.sin(t * 2 + phase * 9) * 0.03, 0.2 + p * (waterTop - 0.25), z)
+      b.scale.setScalar(Math.sin(p * Math.PI) * 0.9 + 0.2)
+    }
+  })
+  // เนื้อน้ำ (ด้านใน) + แก้ว (เปิดปากด้านบน) + ขอบปากโหล
+  const shell = (r: number) =>
+    new THREE.SphereGeometry(r, 36, 22, 0, Math.PI * 2, opening, Math.PI - opening)
+  k.add(shell(0.97), soft('#6fc3f0', { opacity: 0.22, side: THREE.BackSide }), [0, center, 0])
+  k.add(shell(1), soft('#d8f2ff', { glass: true, opacity: 0.32 }), [0, center, 0]).renderOrder = 5
+  const rimR = Math.sin(opening)
+  const rim = k.add(
+    new THREE.TorusGeometry(rimR, 0.035, 8, 40),
+    soft('#eaf8ff', { glass: true, opacity: 0.6 }),
+    [0, center + Math.cos(opening), 0],
+  )
+  rim.rotation.x = Math.PI / 2
+  rim.renderOrder = 6
+  let time = 0
+  return {
+    root: k.root,
+    radius: 1,
+    floorY: 0.2,
+    waterTop,
+    update(dt) {
+      time += dt
+      for (const anim of k.anims) anim(time)
+    },
+    dispose: () => k.dispose(),
+  }
+}

@@ -10,6 +10,7 @@ import {
   type Temperament,
 } from '@mochimon/core'
 import { createBlobShadow, Creature } from '@mochimon/creature'
+import { createBowl, type Bowl } from '@mochimon/habitat'
 import { Bubble, floatIcons } from './fx'
 import { LINES, STAGE_TH } from './text'
 import {
@@ -35,6 +36,11 @@ const EDGE_MARGIN = 70
 const PHYSICS_STEP = 1 / 120
 /** ตำแหน่งพักรอบจุดพักผ่อน เรียงตามลำดับของสัตว์ (ไม่ให้กองทับกัน) */
 const REST_OFFSETS = [0, -78, 78, -156]
+const FLY_SPEED = 150
+/** ขนาดปลาเมื่ออยู่ในโหล (เทียบกับขนาดจริง) */
+const FISH_IN_BOWL = 0.72
+/** บินได้สูงสุดเหนือพื้น (px) — ไม่ขึ้นไปวนเวียนกลางงานของผู้ใช้ */
+const FLY_CEILING = 360
 
 /** สัตว์ 1 ตัวบนจอ: โมเดล 3D + ฟิสิกส์ง่ายๆ + ฟองคำพูด */
 export class PetActor {
@@ -77,6 +83,12 @@ export class PetActor {
   private standing: { perch: Perch; winX: number; winY: number } | null = null
   /** ขอบหน้าต่างที่ตั้งใจจะกระโดดขึ้นไป */
   private climb: Perch | null = null
+  /** สัตว์น้ำอยู่ในโหลแก้วลอยน้ำ */
+  private bowl: Bowl | null = null
+  private bowlScale = 1
+  /** กำลังบิน: จุดหมายกลางอากาศ / กำลังร่อนลงจอด */
+  private flight: { tx: number; ty: number; landing: boolean } | null = null
+  private clock = 0
 
   constructor(state: PetState, x?: number) {
     this.state = state
@@ -102,7 +114,20 @@ export class PetActor {
     })
     this.creature.setPixelScale(PX_PER_UNIT)
     this.holder.add(this.creature.root)
-    this.shadow = createBlobShadow(this.creature.footprint, 0.2)
+    this.bowl?.dispose()
+    this.bowl?.root.removeFromParent()
+    this.bowl = null
+    if (nurture.stage !== 'egg' && viewPet(this.state).phenotype.habitat === 'water') {
+      // สัตว์น้ำเดินบนบกไม่ได้ → อยู่ในโหลแก้วที่เลื่อนไปตามพื้นได้
+      // ย่อปลาลงเล็กน้อยให้ว่ายในโหลได้โดยไม่ล้นแก้ว และโหลไม่ใหญ่เกินเพื่อนๆ
+      const size = this.creature.size
+      this.creature.root.scale.setScalar(FISH_IN_BOWL)
+      this.bowlScale = Math.max(size.x, size.y, size.z) * FISH_IN_BOWL * 0.62 + 0.12
+      this.bowl = createBowl()
+      this.bowl.root.scale.setScalar(this.bowlScale)
+      this.holder.add(this.bowl.root)
+    }
+    this.shadow = createBlobShadow(this.bowl ? this.bowlScale * 0.8 : this.creature.footprint, 0.2)
     this.holder.add(this.shadow)
     this.built = { stage: nurture.stage, fat: nurture.fat, fitness: nurture.fitness }
   }
@@ -140,17 +165,29 @@ export class PetActor {
 
   /** กำลังลอยอยู่กลางอากาศ (กระโดด/ร่วง) */
   get inAir(): boolean {
-    return this.airborne
+    return this.airborne || this.flight !== null
+  }
+  get flying(): boolean {
+    return this.flight !== null
+  }
+  get inBowl(): boolean {
+    return this.bowl !== null
+  }
+  /** บินได้: ปีกบินได้และโตพ้นวัยเบบี้ */
+  get canFly(): boolean {
+    return Boolean(this.creature.rig?.canFly) && !this.isEgg && this.state.nurture.stage !== 'baby'
   }
   get isEgg(): boolean {
     return this.state.nurture.stage === 'egg'
   }
   get heightPx(): number {
-    return this.creature.size.y * PX_PER_UNIT
+    return (this.bowl ? this.bowlScale * 1.9 : this.creature.size.y) * PX_PER_UNIT
   }
   /** วงกลมพื้นที่จับต้องได้ (พิกัดจอ) */
   get hit(): { x: number; y: number; r: number } {
-    const r = Math.max(this.heightPx * 0.55, this.creature.footprint * PX_PER_UNIT * 1.2)
+    const r = this.bowl
+      ? this.bowlScale * PX_PER_UNIT * 1.02
+      : Math.max(this.heightPx * 0.55, this.creature.footprint * PX_PER_UNIT * 1.2)
     return { x: this.x, y: flipY(this.y + this.heightPx * 0.5), r }
   }
   contains(px: number, py: number): boolean {
@@ -173,6 +210,7 @@ export class PetActor {
 
   grab(px: number, py: number): void {
     this.held = true
+    this.flight = null
     this.errand = null
     this.grabOffset = { x: this.x - px, y: this.y - flipY(py) }
     this.setState(petEvent(this.state, 'pickedUp'))
@@ -248,7 +286,7 @@ export class PetActor {
 
   /** เล็งขอบหน้าต่างสักแห่งแล้วเดินไปใต้ขอบนั้นเพื่อกระโดดขึ้น — คืน false ถ้าไม่มีขอบให้ปีน */
   aimForLedge(): boolean {
-    if (this.isEgg || this.state.nurture.stage === 'baby') return false
+    if (this.isEgg || this.bowl || this.state.nurture.stage === 'baby') return false
     const here = this.standing?.perch.windowId
     const perches = activePerches().filter((perch) => perch.windowId !== here)
     if (perches.length === 0) return false
@@ -320,7 +358,57 @@ export class PetActor {
     this.shuffling = true
   }
 
+  /** จุดหมายถัดไปกลางอากาศ (ครึ่งล่างของจอ ไม่เข้าใต้แผงผู้ช่วย) */
+  private nextWaypoint(): void {
+    if (!this.flight) return
+    const floor = groundLevel()
+    const ceiling = Math.min(floor + FLY_CEILING, layout.height * 0.55)
+    this.flight.tx = rng.range(EDGE_MARGIN, walkMaxX(EDGE_MARGIN))
+    this.flight.ty = rng.range(floor + 90, Math.max(floor + 100, ceiling))
+  }
+
+  /** บิน 1 เฟรม — คืน true ถ้ากำลังเคลื่อนที่ */
+  private fly(dt: number, wantsFly: boolean): boolean {
+    if (!this.flight) {
+      this.flight = { tx: this.x, ty: this.y, landing: false }
+      this.standing = null
+      this.climb = null
+      this.targetX = null
+      this.nextWaypoint()
+    }
+    const f = this.flight
+    if (!wantsFly && !f.landing) {
+      // หมดเวลาบิน: ร่อนลงข้างหน้าเล็กน้อย (บนพื้น/ขอบหน้าต่างใต้จุดนั้น)
+      f.landing = true
+      f.tx = THREE.MathUtils.clamp(
+        this.x + this.facing * rng.range(40, 140),
+        EDGE_MARGIN,
+        walkMaxX(EDGE_MARGIN),
+      )
+    }
+    if (f.landing) f.ty = surfaceAt(f.tx, this.y).y
+    const dx = f.tx - this.x
+    const dy = f.ty - this.y
+    const dist = Math.hypot(dx, dy)
+    if (dist < 6) {
+      if (f.landing) {
+        this.y = f.ty
+        this.flight = null
+        this.squash = 1
+        return false
+      }
+      this.nextWaypoint()
+      return true
+    }
+    const step = Math.min(dist, FLY_SPEED * (f.landing ? 0.8 : 1) * dt)
+    this.x += (dx / dist) * step
+    this.y += (dy / dist) * step
+    if (Math.abs(dx) > 2) this.facing = dx > 0 ? 1 : -1
+    return true
+  }
+
   update(dt: number, others: PetActor[]): void {
+    this.clock += dt
     const behavior = this.state.behavior
     const asleep = behavior === 'sleep'
     this.rideWindow()
@@ -329,11 +417,15 @@ export class PetActor {
     let moving = false
     this.shuffling = false
 
+    const wantsFly =
+      behavior === 'fly' && this.canFly && !this.attending && !this.errand && !this.airborne
     if (this.held) {
       this.targetX = null
       this.airborne = false
       this.standing = null
       this.climb = null
+    } else if (this.flight || wantsFly) {
+      moving = this.fly(dt, wantsFly)
     } else if (this.airborne || this.y > ground + 40) {
       if (!this.airborne) {
         // พื้นใต้เท้าหายไป: เดินพ้นขอบเอง หรือหน้าต่างที่เกาะอยู่ถูกปิด/ย้าย/ถูกบัง
@@ -383,7 +475,7 @@ export class PetActor {
       if (this.targetX !== null) {
         const dx = this.targetX - this.x
         if (Math.abs(dx) > 6) {
-          const hurry = behavior === 'zoomies' ? 3 : this.errand ? 1.6 : 1
+          const hurry = (behavior === 'zoomies' ? 3 : this.errand ? 1.6 : 1) * (this.bowl ? 0.5 : 1)
           const speed = WALK_SPEED * hurry * (0.7 + this.creature.size.y * 0.5)
           this.x += Math.sign(dx) * Math.min(Math.abs(dx), speed * dt)
           this.facing = dx > 0 ? 1 : -1
@@ -412,10 +504,26 @@ export class PetActor {
     this.squash = Math.max(0, this.squash - dt * 5)
     const sq = Math.sin(this.squash * Math.PI) * 0.18
     // ตัวที่ถูกอุ้มอยู่หน้าสุด; ตัวอื่นเรียงตามลำดับ ไม่ให้โมเดลทะลุกัน
-    this.holder.position.set(this.x, this.y, this.held ? 1600 : this.slot * 300)
+    // บิน: ลอยขึ้นลงเบาๆ
+    const bob = this.flight && !this.flight.landing ? Math.sin(this.clock * 3) * 6 : 0
+    this.holder.position.set(this.x, this.y + bob, this.held ? 1600 : this.slot * 300)
     this.holder.scale.set(PX_PER_UNIT * (1 + sq), PX_PER_UNIT * (1 - sq), PX_PER_UNIT)
     this.creature.root.rotation.y = this.yaw
-    if (this.shadow) this.shadow.visible = !this.held && !this.airborne
+    if (this.bowl) {
+      // ว่ายวนช้าๆ ในโหล
+      const s = this.bowlScale
+      const size = this.creature.size.clone().multiplyScalar(FISH_IN_BOWL)
+      const sway = Math.sin(this.clock * 0.6 + this.slot)
+      this.creature.root.position.set(
+        sway * s * 0.22,
+        s * 0.95 - size.y * 0.5 + Math.sin(this.clock * 1.3) * s * 0.05,
+        0,
+      )
+      if (!moving)
+        this.creature.root.rotation.y = Math.cos(this.clock * 0.6 + this.slot) > 0 ? 0.9 : -0.9
+      this.bowl.update(dt)
+    }
+    if (this.shadow) this.shadow.visible = !this.held && !this.airborne && !this.flight
 
     const hit = this.hit
     const look = cursor.seen ? THREE.MathUtils.clamp((cursor.x - hit.x) / 380, -1, 1) : 0
@@ -423,7 +531,7 @@ export class PetActor {
     this.loveTimer = Math.max(0, this.loveTimer - dt)
     this.creature.hatch = this.state.incubation ?? 0
     const wantsLove = this.loveTimer > 0 || behavior === 'beg' || behavior === 'seekAttention'
-    const flying = this.held || this.airborne
+    const flying = this.held || this.airborne || this.flight !== null
     this.creature.update(dt, {
       pose:
         moving || flying
@@ -448,6 +556,7 @@ export class PetActor {
 
   dispose(): void {
     this.creature.dispose()
+    this.bowl?.dispose()
     if (this.shadow) {
       this.shadow.geometry.dispose()
       ;(this.shadow.material as THREE.Material).dispose()

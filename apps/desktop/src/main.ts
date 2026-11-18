@@ -1,4 +1,4 @@
-import { geneDb } from '@mochimon/core'
+import { createFounder, createPet, geneDb, newPetId, type LifeStage } from '@mochimon/core'
 import { HABITAT_KINDS, type HabitatKind } from '@mochimon/habitat'
 import * as assist from './assist'
 import { focusChipRect, onFocusChipClick, startFocusSession, tickAssistant } from './assist'
@@ -52,6 +52,7 @@ import {
   layout,
   mode,
   renderer,
+  rng,
   scene,
   setHabitat,
   settings,
@@ -305,6 +306,17 @@ async function start(): Promise<void> {
       openAltar,
       openBook,
       summonWith,
+      /** สร้างสัตว์สายพันธุ์ที่ระบุบนจอ (ใช้ทดสอบ) */
+      spawn: (species: string, stage: LifeStage = 'adult', x?: number) =>
+        addPet(
+          createPet(
+            species,
+            createFounder(species, rng),
+            { stage, fat: 0.35, fitness: 0.4 },
+            newPetId(rng),
+          ),
+          x,
+        ),
     },
   })
   requestAnimationFrame(frame)
