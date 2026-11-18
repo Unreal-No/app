@@ -2,12 +2,15 @@ import { geneDb, type GeneDb } from '@mochimon/data'
 import { BEHAVIORS } from '../behavior/utility'
 import { createCompanion, repairCompanion, type CompanionState } from '../companion/companion'
 import { LIFE_STAGES } from '../body/composition'
+import { createDex, repairDex, type Dex } from '../genetics/dex'
+import { repairFamily, type FamilyBook } from '../genetics/family'
 import { validateGenome } from '../genetics/genome'
 import { neutralEmotion } from '../mind/emotion'
 import { fullNeeds, NEED_KEYS } from '../mind/needs'
 import { noExperience, TRAIT_KEYS } from '../mind/personality'
 import { clamp } from '../rng'
-import { STAGE_START_SECONDS, type PetState } from '../sim/petSim'
+import { ORIGIN_KINDS, STAGE_START_SECONDS, type PetOrigin, type PetState } from '../sim/petSim'
+import { createSummonLog, repairSummonLog, type SummonLog } from '../summon/registry'
 
 export interface SaveSettings {
   /** โหมดเงียบ (ไม่รบกวน) */
@@ -30,11 +33,22 @@ export interface SaveData {
   settings: SaveSettings
   /** ผู้ช่วยทำงาน: นัด งาน จับเวลาโฟกัส สุขภาพ (ตั้งแต่รุ่น 3) */
   companion: CompanionState
+  /** สมุดสะสมลักษณะ/สายพันธุ์ที่พบ */
+  dex: Dex
+  /** ไฟล์ที่เคยอัญเชิญ (hash) + โควตาต่อวัน */
+  summons: SummonLog
+  /** บันทึกเครือญาติ */
+  family: FamilyBook
   savedAt: number
 }
 
+/** ส่วนของเซฟที่เพิ่มทีหลัง (มีค่าเริ่มต้นเสมอ) */
+export type SaveExtras = Partial<Pick<SaveData, 'dex' | 'summons' | 'family'>>
+
 /** จำนวนสัตว์สูงสุดที่เดินบนจอพร้อมกัน (ที่เหลืออยู่ฟาร์ม) */
 export const MAX_ACTIVE_PETS = 4
+/** จำนวนสัตว์สูงสุดในฟาร์ม (เกินแล้วรับตัวใหม่เพิ่มไม่ได้ — ตัวที่มีอยู่ไม่หาย) */
+export const MAX_FARM_PETS = 60
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   quiet: false,
@@ -49,8 +63,20 @@ export function createSave(
   savedAt = 0,
   farm: PetState[] = [],
   companion: CompanionState = createCompanion(savedAt),
+  extras: SaveExtras = {},
 ): SaveData {
-  return { v: 3, pets, farm, habitat, settings: { ...settings }, companion, savedAt }
+  return {
+    v: 3,
+    pets,
+    farm,
+    habitat,
+    settings: { ...settings },
+    companion,
+    dex: extras.dex ?? createDex(),
+    summons: extras.summons ?? createSummonLog(),
+    family: extras.family ?? {},
+    savedAt,
+  }
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -90,6 +116,21 @@ function repairPet(raw: unknown, index: number, db: GeneDb): PetState | null {
     raw.parents.every((p) => typeof p === 'string')
       ? (raw.parents as [string, string])
       : undefined
+  const originRaw = isObject(raw.origin) ? raw.origin : null
+  const origin: PetOrigin | undefined =
+    originRaw && ORIGIN_KINDS.includes(originRaw.kind as never)
+      ? {
+          kind: originRaw.kind as PetOrigin['kind'],
+          ...(typeof originRaw.fileKind === 'string'
+            ? { fileKind: originRaw.fileKind.slice(0, 16) }
+            : {}),
+          ...(originRaw.fossil === true ? { fossil: true } : {}),
+          ...(typeof originRaw.place === 'string' ? { place: originRaw.place.slice(0, 24) } : {}),
+        }
+      : undefined
+  const mutations = Array.isArray(raw.mutations)
+    ? raw.mutations.filter((m): m is string => typeof m === 'string' && Boolean(db.alleles[m]))
+    : []
 
   return {
     id: typeof raw.id === 'string' && raw.id ? raw.id : `pet-migrated-${index}`,
@@ -115,6 +156,11 @@ function repairPet(raw: unknown, index: number, db: GeneDb): PetState | null {
     ),
     ...(stage === 'egg' ? { incubation: num(raw.incubation, 0) } : {}),
     ...(parents ? { parents } : {}),
+    ...(typeof raw.bornAt === 'number' && Number.isFinite(raw.bornAt)
+      ? { bornAt: raw.bornAt }
+      : {}),
+    ...(origin ? { origin } : {}),
+    ...(mutations.length > 0 ? { mutations } : {}),
   }
 }
 
@@ -172,6 +218,9 @@ export function parseSave(json: string, db: GeneDb = geneDb): SaveData | null {
     settings,
     // รุ่นเก่าไม่มีข้อมูลผู้ช่วย → เริ่มว่าง; รายการที่เสียถูกทิ้งทีละรายการ
     companion: repairCompanion(raw.companion, Date.now()),
+    dex: repairDex(raw.dex, db),
+    summons: repairSummonLog(raw.summons),
+    family: repairFamily(raw.family),
     savedAt: num(raw.savedAt, 0, 0, Number.MAX_SAFE_INTEGER),
   }
 }

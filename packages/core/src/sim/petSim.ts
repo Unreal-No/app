@@ -42,6 +42,25 @@ export interface PetState {
   ageSeconds: number
   /** รหัสของพ่อแม่ (ถ้าเกิดจากการผสมพันธุ์) */
   parents?: [string, string]
+  /** เวลาที่ได้ไข่/เกิด (ms) — ใช้แสดงวันเกิด */
+  bornAt?: number
+  /** ที่มาของสัตว์ตัวนี้ */
+  origin?: PetOrigin
+  /** ลักษณะที่ได้จากการกลายพันธุ์ตอนเกิด (รหัส allele ชิ้นส่วน) */
+  mutations?: string[]
+}
+
+export const ORIGIN_KINDS = ['starter', 'summon', 'bred', 'wild', 'expedition', 'gift'] as const
+export type OriginKind = (typeof ORIGIN_KINDS)[number]
+
+export interface PetOrigin {
+  kind: OriginKind
+  /** ชนิดไฟล์ที่ใช้อัญเชิญ (เฉพาะ summon) */
+  fileKind?: string
+  /** ไข่ฟอสซิล */
+  fossil?: boolean
+  /** จุดหมายที่ไปสำรวจมา (เฉพาะ expedition) */
+  place?: string
 }
 
 export interface WorldContext {
@@ -284,7 +303,16 @@ export function breedPets(
   db: GeneDb = geneDb,
 ): PetState | null {
   if (a.id === b.id || !canBreed(a) || !canBreed(b)) return null
-  const { genome } = breed(a.genome, b.genome, rng, { db })
+  const { genome, mutations } = breed(a.genome, b.genome, rng, { db })
   const egg = createPet(name, genome, { stage: 'egg', fat: 0.35, fitness: 0.4 }, newPetId(rng))
-  return { ...egg, parents: [a.id, b.id] }
+  // จำเฉพาะการกลายพันธุ์ที่เห็นได้ (ชิ้นส่วนเปลี่ยนชนิด) — การขยับค่าตัวเลขเล็กน้อยไม่นับ
+  const changed = [
+    ...new Set(mutations.flatMap((m) => (m.to.k === 'p' && m.kind !== 'shift' ? [m.to.id] : []))),
+  ]
+  return {
+    ...egg,
+    parents: [a.id, b.id],
+    origin: { kind: 'bred' },
+    ...(changed.length > 0 ? { mutations: changed } : {}),
+  }
 }
